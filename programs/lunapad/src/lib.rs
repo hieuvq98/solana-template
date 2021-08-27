@@ -15,6 +15,8 @@ mod coin98_lunapad {
     price_in_sol: u64,
     allow_token: bool,
     price_in_token: u64,
+    token0_mint: Pubkey,
+    token1_mint: Pubkey,
     vault: Pubkey,
     vault_signer: Pubkey,
     vault_token0: Pubkey,
@@ -37,6 +39,8 @@ mod coin98_lunapad {
     launchpad.price_in_sol = price_in_sol;
     launchpad.allow_token = allow_token;
     launchpad.price_in_token = price_in_token;
+    launchpad.token0_mint = token0_mint;
+    launchpad.token1_mint = token1_mint;
     launchpad.vault = vault;
     launchpad.vault_signer = vault_signer;
     launchpad.vault_token0 =  vault_token0;
@@ -55,13 +59,14 @@ mod coin98_lunapad {
   pub fn create_global_profile(
     ctx: Context<CreateGlobalProfileContext>,
     _nonce: u8,
-    user: Pubkey,
   ) -> ProgramResult {
     msg!("Coin98Lunapad: Instruction_CreateGlobalProfile");
 
+    let user = &ctx.accounts.user;
+
     let profile = &mut ctx.accounts.global_profile;
 
-    profile.user = user;
+    profile.user = *user.key;
 
     Ok(())
   }
@@ -69,15 +74,16 @@ mod coin98_lunapad {
   pub fn create_local_profile(
     ctx: Context<CreateLocalProfileContext>,
     _nonce: u8,
-    launchpad: Pubkey,
-    user: Pubkey,
   ) -> ProgramResult {
     msg!("Coin98Lunapad: Instruction_CreateLocalProfile");
 
+    let launchpad = &ctx.accounts.launchpad;
+    let user = &ctx.accounts.user;
+
     let profile = &mut ctx.accounts.local_profile;
 
-    profile.launchpad = launchpad;
-    profile.user = user;
+    profile.launchpad = *launchpad.key;
+    profile.user = *user.key;
 
     Ok(())
   }
@@ -267,7 +273,7 @@ pub struct CreateLaunchpadContext<'info> {
     &[8, 201, 24, 140, 93, 100, 30, 148],
     &*launchpad_path,
     &[launchpad_nonce]
-  ], payer = payer, space = 2233)]
+  ], payer = payer, space = 340)]
   pub launchpad: ProgramAccount<'info, Launchpad>,
 
   pub rent: Sysvar<'info, Rent>,
@@ -289,7 +295,7 @@ pub struct CreateGlobalProfileContext<'info> {
     &[32, 40, 118, 173, 164, 46, 192, 86],
     user.key.as_ref(),
     &[profile_nonce]
-  ], payer = payer, space = 2233)]
+  ], payer = payer, space = 49)]
   pub global_profile: ProgramAccount<'info, GlobalProfile>,
 
   pub rent: Sysvar<'info, Rent>,
@@ -313,7 +319,7 @@ pub struct CreateLocalProfileContext<'info> {
     launchpad.key.as_ref(),
     user.key.as_ref(),
     &[profile_nonce]
-  ], payer = payer, space = 2233)]
+  ], payer = payer, space = 90)]
   pub local_profile: ProgramAccount<'info, LocalProfile>,
 
   pub rent: Sysvar<'info, Rent>,
@@ -421,9 +427,10 @@ pub struct Launchpad {
   pub new_owner: Pubkey,
   pub allow_sol: bool,
   pub price_in_sol: u64,
-  pub sol_vault: Pubkey,
   pub allow_token: bool,
   pub price_in_token: u64,
+  pub token0_mint: Pubkey,
+  pub token1_mint: Pubkey,
   pub vault: Pubkey,
   pub vault_signer: Pubkey,
   pub vault_token0: Pubkey,
