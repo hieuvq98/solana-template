@@ -103,7 +103,7 @@ mod coin98_lunapad {
     Ok(())
   }
 
-  pub fn redeeem_by_sol(
+  pub fn redeem_by_sol(
     ctx: Context<RedeemBySolContext>,
     amount: u64,
   ) -> ProgramResult {
@@ -138,7 +138,7 @@ mod coin98_lunapad {
       amount: amount,
     };
     let mut withdraw_data: Vec<u8> = Vec::new();
-    withdraw_data.extend_from_slice(&[145, 131, 74, 136, 65, 137, 42, 38]);
+    withdraw_data.extend_from_slice(&[136, 235, 181, 5, 101, 109, 57, 81]);
     withdraw_data.extend_from_slice(&withdraw_params.try_to_vec().unwrap());
 
     let instruction = solana_program::instruction::Instruction {
@@ -149,7 +149,7 @@ mod coin98_lunapad {
         solana_program::instruction::AccountMeta::new_readonly(*launchpad_signer.key, true),
         solana_program::instruction::AccountMeta::new(*vault_token1.key, false),
         solana_program::instruction::AccountMeta::new(*user_token1.key, false),
-        solana_program::instruction::AccountMeta::new_readonly(*token_program.key, true),
+        solana_program::instruction::AccountMeta::new_readonly(*token_program.key, false),
       ],
       data: withdraw_data,
     };
@@ -173,7 +173,7 @@ mod coin98_lunapad {
     Ok(())
   }
 
-  pub fn redeeem_by_token(
+  pub fn redeem_by_token(
     ctx: Context<RedeemByTokenContext>,
     amount: u64,
   ) -> ProgramResult {
@@ -226,7 +226,7 @@ mod coin98_lunapad {
       amount: amount,
     };
     let mut withdraw_data: Vec<u8> = Vec::new();
-    withdraw_data.extend_from_slice(&[145, 131, 74, 136, 65, 137, 42, 38]);
+    withdraw_data.extend_from_slice(&[136, 235, 181, 5, 101, 109, 57, 81]);
     withdraw_data.extend_from_slice(&withdraw_params.try_to_vec().unwrap());
 
     let instruction = solana_program::instruction::Instruction {
@@ -237,7 +237,7 @@ mod coin98_lunapad {
         solana_program::instruction::AccountMeta::new_readonly(*launchpad_signer.key, true),
         solana_program::instruction::AccountMeta::new(*vault_token1.key, false),
         solana_program::instruction::AccountMeta::new(*user_token1.key, false),
-        solana_program::instruction::AccountMeta::new_readonly(*token_program.key, true),
+        solana_program::instruction::AccountMeta::new_readonly(*token_program.key, false),
       ],
       data: withdraw_data,
     };
