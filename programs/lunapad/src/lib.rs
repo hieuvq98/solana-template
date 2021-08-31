@@ -260,6 +260,74 @@ mod coin98_lunapad {
 
     Ok(())
   }
+
+  pub fn set_whitelist(
+    ctx: Context<SetWhitelistContext>,
+    is_whitelisted: bool,
+  ) -> ProgramResult {
+    msg!("Coin98Lunapad: Instruction_SetWhitelist");
+
+    let user = &ctx.accounts.user;
+
+    let profile = &mut ctx.accounts.local_profile;
+
+    profile.is_whitelisted = is_whitelisted;
+
+    Ok(())
+  }
+
+  pub fn set_blacklist(
+    ctx: Context<SetBlacklistContext>,
+    is_blacklisted: bool,
+  ) -> ProgramResult {
+    msg!("Coin98Lunapad: Instruction_SetBlacklist");
+
+    let user = &ctx.accounts.user;
+
+    let profile = &mut ctx.accounts.global_profile;
+
+    profile.is_blacklisted = is_blacklisted;
+
+    Ok(())
+  }
+
+  pub fn transfer_ownership(ctx: Context<TransferOwnershipContext>,
+    new_owner: Pubkey,
+  ) -> ProgramResult {
+    msg!("Coin98Lunapad: Instruction_TransferOwnership");
+
+    let owner = &ctx.accounts.owner;
+    let launchpad = &ctx.accounts.launchpad;
+
+    if launchpad.owner != *owner.key {
+      return Err(ErrorCode::InvalidOwner.into());
+    }
+
+    let launchpad = &mut ctx.accounts.launchpad;
+
+    launchpad.new_owner = new_owner;
+
+    Ok(())
+  }
+
+  pub fn accept_ownership(ctx: Context<AcceptOwnershipContext>,
+  ) -> ProgramResult {
+    msg!("Coin98Lunapad: Instruction_AcceptOwnership");
+
+    let new_owner = &ctx.accounts.new_owner;
+    let launchpad = &ctx.accounts.launchpad;
+
+    if launchpad.new_owner != *new_owner.key {
+      return Err(ErrorCode::InvalidNewOwner.into());
+    }
+
+    let launchpad = &mut ctx.accounts.launchpad;
+
+    launchpad.owner = launchpad.new_owner;
+    launchpad.new_owner = solana_program::system_program::ID;
+
+    Ok(())
+  }
 }
 
 #[derive(Accounts)]
@@ -419,6 +487,52 @@ pub struct RedeemByTokenContext<'info> {
   pub token_program: AccountInfo<'info>,
 }
 
+#[derive(Accounts)]
+pub struct SetWhitelistContext<'info> {
+
+  #[account(signer)]
+  pub owner: AccountInfo<'info>,
+
+  pub user: AccountInfo<'info>,
+
+  pub launchpad: ProgramAccount<'info, Launchpad>,
+
+  #[account(mut)]
+  pub local_profile: ProgramAccount<'info, LocalProfile>,
+}
+
+#[derive(Accounts)]
+pub struct SetBlacklistContext<'info> {
+
+  #[account(signer)]
+  pub owner: AccountInfo<'info>,
+
+  pub user: AccountInfo<'info>,
+
+  #[account(mut)]
+  pub global_profile: ProgramAccount<'info, GlobalProfile>,
+}
+
+#[derive(Accounts)]
+pub struct TransferOwnershipContext<'info> {
+
+  #[account(mut)]
+  pub launchpad: ProgramAccount<'info, Launchpad>,
+
+  #[account(signer)]
+  pub owner: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct AcceptOwnershipContext<'info> {
+
+  #[account(mut)]
+  pub launchpad: ProgramAccount<'info, Launchpad>,
+
+  #[account(signer)]
+  pub new_owner: AccountInfo<'info>,
+}
+
 #[associated]
 #[derive(Default)]
 pub struct Launchpad {
@@ -438,6 +552,7 @@ pub struct Launchpad {
   pub is_private_sale: bool,
   pub sale_limit_per_tx: u64,
   pub sale_limit_per_user: u64,
+  pub is_finalized: bool,
   pub register_start_timestamp: i64,
   pub register_end_timestamp: i64,
   pub redeem_start_timestamp: i64,
