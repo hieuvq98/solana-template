@@ -28,8 +28,30 @@ mod coin98_lunapad {
     register_end_timestamp: i64,
     redeem_start_timestamp: i64,
     redeem_end_timestamp: i64,
+    is_finalized: bool,
   ) -> ProgramResult {
     msg!("Coin98Lunapad: Instruction_CreateLaunchpad");
+
+    let clock = &ctx.accounts.clock;
+
+    if allow_sol && price_in_sol == 0u64 {
+      return Err(ErrorCode::InvalidSolPrice.into());
+    }
+    if allow_token && price_in_token == 0u64 {
+      return Err(ErrorCode::InvalidTokenPrice.into());
+    }
+    if register_start_timestamp > register_end_timestamp {
+      return Err(ErrorCode::InvalidRegistrationTime.into());
+    }
+    if clock.unix_timestamp > register_start_timestamp {
+      return Err(ErrorCode::FutureTimeRequired.into());
+    }
+    if redeem_start_timestamp > redeem_end_timestamp {
+      return Err(ErrorCode::InvalidSaleTime.into());
+    }
+    if redeem_start_timestamp < register_end_timestamp {
+      return Err(ErrorCode::RegistrationAndSaleTimeOverlap.into());
+    }
 
     let launchpad = &mut ctx.accounts.launchpad;
 
@@ -52,6 +74,83 @@ mod coin98_lunapad {
     launchpad.register_end_timestamp = register_end_timestamp;
     launchpad.redeem_start_timestamp = redeem_start_timestamp;
     launchpad.redeem_end_timestamp = redeem_end_timestamp;
+    launchpad.is_finalized = is_finalized;
+
+    Ok(())
+  }
+
+  pub fn update_launchpad(
+    ctx: Context<UpdateLaunchpadContext>,
+    allow_sol: bool,
+    price_in_sol: u64,
+    allow_token: bool,
+    price_in_token: u64,
+    token0_mint: Pubkey,
+    token1_mint: Pubkey,
+    vault: Pubkey,
+    vault_signer: Pubkey,
+    vault_token0: Pubkey,
+    vault_token1: Pubkey,
+    is_private_sale: bool,
+    sale_limit_per_tx: u64,
+    sale_limit_per_user: u64,
+    register_start_timestamp: i64,
+    register_end_timestamp: i64,
+    redeem_start_timestamp: i64,
+    redeem_end_timestamp: i64,
+    is_finalized: bool,
+  ) -> ProgramResult {
+    msg!("Coin98Lunapad: Instruction_UpdateLaunchpad");
+
+    let owner = &ctx.accounts.owner;
+    let launchpad = &ctx.accounts.launchpad;
+    let clock = &ctx.accounts.clock;
+
+    if launchpad.owner != *owner.key {
+      return Err(ErrorCode::InvalidOwner.into());
+    }
+    if launchpad.is_finalized || clock.unix_timestamp > launchpad.register_start_timestamp {
+      return Err(ErrorCode::LaunchpadFinalized.into());
+    }
+    if allow_sol && price_in_sol == 0u64 {
+      return Err(ErrorCode::InvalidSolPrice.into());
+    }
+    if allow_token && price_in_token == 0u64 {
+      return Err(ErrorCode::InvalidTokenPrice.into());
+    }
+    if clock.unix_timestamp > register_start_timestamp {
+      return Err(ErrorCode::FutureTimeRequired.into());
+    }
+    if register_start_timestamp > register_end_timestamp {
+      return Err(ErrorCode::InvalidRegistrationTime.into());
+    }
+    if redeem_start_timestamp > redeem_end_timestamp {
+      return Err(ErrorCode::InvalidSaleTime.into());
+    }
+    if redeem_start_timestamp < register_end_timestamp {
+      return Err(ErrorCode::RegistrationAndSaleTimeOverlap.into());
+    }
+
+    let launchpad = &mut ctx.accounts.launchpad;
+
+    launchpad.allow_sol = allow_sol;
+    launchpad.price_in_sol = price_in_sol;
+    launchpad.allow_token = allow_token;
+    launchpad.price_in_token = price_in_token;
+    launchpad.token0_mint = token0_mint;
+    launchpad.token1_mint = token1_mint;
+    launchpad.vault = vault;
+    launchpad.vault_signer = vault_signer;
+    launchpad.vault_token0 =  vault_token0;
+    launchpad.vault_token1 =  vault_token1;
+    launchpad.is_private_sale = is_private_sale;
+    launchpad.sale_limit_per_tx = sale_limit_per_tx;
+    launchpad.sale_limit_per_user = sale_limit_per_user;
+    launchpad.register_start_timestamp = register_start_timestamp;
+    launchpad.register_end_timestamp = register_end_timestamp;
+    launchpad.redeem_start_timestamp = redeem_start_timestamp;
+    launchpad.redeem_end_timestamp = redeem_end_timestamp;
+    launchpad.is_finalized = is_finalized;
 
     Ok(())
   }
@@ -93,9 +192,33 @@ mod coin98_lunapad {
   ) -> ProgramResult {
     msg!("Coin98Lunapad: Instruction_Register");
 
-    let _launchpad = &ctx.accounts.launchpad;
-    let _global_profile = &ctx.accounts.global_profile;
-    let _local_profile = &ctx.accounts.local_profile;
+    let user = &ctx.accounts.user;
+    let launchpad = &ctx.accounts.launchpad;
+    let global_profile = &ctx.accounts.global_profile;
+    let local_profile = &ctx.accounts.local_profile;
+    let clock = &ctx.accounts.clock;
+
+    if global_profile.user != *user.to_account_info().key {
+      return Err(ErrorCode::InvalidUser.into());
+    }
+    if global_profile.is_blacklisted {
+      return Err(ErrorCode::Blacklisted.into());
+    }
+    if local_profile.user != *user.to_account_info().key {
+      return Err(ErrorCode::InvalidUser.into());
+    }
+    if local_profile.launchpad != *launchpad.to_account_info().key {
+      return Err(ErrorCode::InvalidLanchpad.into());
+    }
+    if launchpad.is_private_sale && !local_profile.is_whitelisted {
+      return Err(ErrorCode::NotWhitelisted.into());
+    }
+    if !local_profile.is_registered {
+      return Err(ErrorCode::NotRegistered.into());
+    }
+    if clock.unix_timestamp < launchpad.register_start_timestamp || clock.unix_timestamp > launchpad.register_end_timestamp {
+      return Err(ErrorCode::InvalidSaleTime.into());
+    }
 
     let local_profile = &mut ctx.accounts.local_profile;
     local_profile.is_registered = true;
@@ -112,14 +235,40 @@ mod coin98_lunapad {
     let user = &ctx.accounts.user;
     let launchpad = &ctx.accounts.launchpad;
     let launchpad_signer = &ctx.accounts.launchpad_signer;
-    let _global_profile = &ctx.accounts.global_profile;
-    let _local_profile = &ctx.accounts.local_profile;
+    let global_profile = &ctx.accounts.global_profile;
+    let local_profile = &ctx.accounts.local_profile;
     let user_token1 = &ctx.accounts.user_token1;
     let vault = &ctx.accounts.vault;
     let vault_signer = &ctx.accounts.vault_signer;
     let vault_token1 = &ctx.accounts.vault_token1;
     let vault_program = &ctx.accounts.vault_program;
     let token_program = &ctx.accounts.token_program;
+    let clock = &ctx.accounts.clock;
+
+    if global_profile.user != *user.to_account_info().key {
+      return Err(ErrorCode::InvalidUser.into());
+    }
+    if global_profile.is_blacklisted {
+      return Err(ErrorCode::Blacklisted.into());
+    }
+    if local_profile.user != *user.to_account_info().key {
+      return Err(ErrorCode::InvalidUser.into());
+    }
+    if local_profile.launchpad != *launchpad.to_account_info().key {
+      return Err(ErrorCode::InvalidLanchpad.into());
+    }
+    if !launchpad.allow_sol {
+      return Err(ErrorCode::RedeemBySolNotAllowed.into());
+    }
+    if launchpad.is_private_sale && !local_profile.is_whitelisted {
+      return Err(ErrorCode::NotWhitelisted.into());
+    }
+    if !local_profile.is_registered {
+      return Err(ErrorCode::NotRegistered.into());
+    }
+    if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
+      return Err(ErrorCode::InvalidSaleTime.into());
+    }
 
     let amount_sol = amount * launchpad.price_in_sol;
     let instruction = &solana_program::system_instruction::transfer(user.key, vault_signer.key, amount_sol);
@@ -182,8 +331,8 @@ mod coin98_lunapad {
     let user = &ctx.accounts.user;
     let launchpad = &ctx.accounts.launchpad;
     let launchpad_signer = &ctx.accounts.launchpad_signer;
-    let _global_profile = &ctx.accounts.global_profile;
-    let _local_profile = &ctx.accounts.local_profile;
+    let global_profile = &ctx.accounts.global_profile;
+    let local_profile = &ctx.accounts.local_profile;
     let user_token0 = &ctx.accounts.user_token1;
     let user_token1 = &ctx.accounts.user_token1;
     let vault = &ctx.accounts.vault;
@@ -192,6 +341,29 @@ mod coin98_lunapad {
     let vault_token1 = &ctx.accounts.vault_token1;
     let vault_program = &ctx.accounts.vault_program;
     let token_program = &ctx.accounts.token_program;
+    let clock = &ctx.accounts.clock;
+
+    if global_profile.user != *user.to_account_info().key {
+      return Err(ErrorCode::InvalidUser.into());
+    }
+    if global_profile.is_blacklisted {
+      return Err(ErrorCode::Blacklisted.into());
+    }
+    if local_profile.user != *user.to_account_info().key {
+      return Err(ErrorCode::InvalidUser.into());
+    }
+    if local_profile.launchpad != *launchpad.to_account_info().key {
+      return Err(ErrorCode::InvalidLanchpad.into());
+    }
+    if !launchpad.allow_token {
+      return Err(ErrorCode::RedeemByTokenNotAllowed.into());
+    }
+    if launchpad.is_private_sale && !local_profile.is_whitelisted {
+      return Err(ErrorCode::NotWhitelisted.into());
+    }
+    if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
+      return Err(ErrorCode::InvalidSaleTime.into());
+    }
 
     let amount_token0 = amount * launchpad.price_in_token;
     let transfer_params = TransferTokenParams {
@@ -267,7 +439,18 @@ mod coin98_lunapad {
   ) -> ProgramResult {
     msg!("Coin98Lunapad: Instruction_SetWhitelist");
 
+    let owner = &ctx.accounts.owner;
+    let launchpad = &ctx.accounts.launchpad;
     let user = &ctx.accounts.user;
+    let profile = &ctx.accounts.local_profile;
+
+    if launchpad.owner != *owner.key {
+      return Err(ErrorCode::InvalidOwner.into());
+    }
+
+    if profile.user != *user.key {
+      return Err(ErrorCode::InvalidUser.into());
+    }
 
     let profile = &mut ctx.accounts.local_profile;
 
@@ -283,6 +466,11 @@ mod coin98_lunapad {
     msg!("Coin98Lunapad: Instruction_SetBlacklist");
 
     let user = &ctx.accounts.user;
+    let profile = &ctx.accounts.global_profile;
+
+    if profile.user != *user.key {
+      return Err(ErrorCode::InvalidUser.into());
+    }
 
     let profile = &mut ctx.accounts.global_profile;
 
@@ -347,6 +535,20 @@ pub struct CreateLaunchpadContext<'info> {
   pub rent: Sysvar<'info, Rent>,
 
   pub system_program: AccountInfo<'info>,
+
+  pub clock: Sysvar<'info, Clock>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateLaunchpadContext<'info> {
+
+  #[account(signer)]
+  pub owner: AccountInfo<'info>,
+
+  #[account(mut)]
+  pub launchpad: ProgramAccount<'info, Launchpad>,
+
+  pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
@@ -406,6 +608,8 @@ pub struct RegisterContext<'info> {
   pub global_profile: ProgramAccount<'info, GlobalProfile>,
 
   pub local_profile: ProgramAccount<'info, LocalProfile>,
+
+  pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
@@ -444,6 +648,8 @@ pub struct RedeemBySolContext<'info> {
   pub system_program: AccountInfo<'info>,
 
   pub token_program: AccountInfo<'info>,
+
+  pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
@@ -485,6 +691,8 @@ pub struct RedeemByTokenContext<'info> {
   pub vault_program: AccountInfo<'info>,
 
   pub token_program: AccountInfo<'info>,
+
+  pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
@@ -499,6 +707,8 @@ pub struct SetWhitelistContext<'info> {
 
   #[account(mut)]
   pub local_profile: ProgramAccount<'info, LocalProfile>,
+
+  pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
@@ -552,11 +762,11 @@ pub struct Launchpad {
   pub is_private_sale: bool,
   pub sale_limit_per_tx: u64,
   pub sale_limit_per_user: u64,
-  pub is_finalized: bool,
   pub register_start_timestamp: i64,
   pub register_end_timestamp: i64,
   pub redeem_start_timestamp: i64,
   pub redeem_end_timestamp: i64,
+  pub is_finalized: bool,
 }
 
 #[associated]
@@ -584,13 +794,60 @@ pub struct TransferTokenParams {
 #[error]
 pub enum ErrorCode {
 
+  #[msg("Coin98Lunapad: Forbidden.")]
+  Blacklisted,
+
+  #[msg("Coin98Lunapad: Time must be set in the future.")]
+  FutureTimeRequired,
+
+  #[msg("Coin98Lunapad: Invalid launchpad.")]
+  InvalidLanchpad,
+
   #[msg("Coin98Lunapad: Not an owner.")]
   InvalidOwner,
 
   #[msg("Coin98Lunapad: Not new owner.")]
   InvalidNewOwner,
 
+  #[msg("Coin98Lunapad: Invalid registration time range.")]
+  InvalidRegistrationTime,
+
+  #[msg("Coin98Lunapad: Invalid sale time range.")]
+  InvalidSaleTime,
+
+  #[msg("Coin98Lunapad: Invalid SOL price.")]
+  InvalidSolPrice,
+
+  #[msg("Coin98Lunapad: Invalid token price.")]
+  InvalidTokenPrice,
+
+  #[msg("Coin98Lunapad: Invalid user.")]
+  InvalidUser,
+
+  #[msg("Coin98Lunapad: Launchpad setting is finalized.")]
+  LaunchpadFinalized,
+
+  #[msg("Coin98Lunapad: Only allowed during registration time.")]
+  NotInRegistrationTime,
+
+  #[msg("Coin98Lunapad: Only allowed during sale time.")]
+  NotItSaleTime,
+
+  #[msg("Coin98Lunapad: Not registered.")]
+  NotRegistered,
+
+  #[msg("Coin98Lunapad: Not allowed.")]
+  NotWhitelisted,
+
+  #[msg("Coin98Lunapad: Registration and sale time overlap.")]
+  RegistrationAndSaleTimeOverlap,
+
+  #[msg("Coin98Lunapad: Redeem by SOL not allowed.")]
+  RedeemBySolNotAllowed,
+
+  #[msg("Coin98Lunapad: Redeem by token not allowed.")]
+  RedeemByTokenNotAllowed,
+
   #[msg("Coin98Lunapad: Transaction failed.")]
   TransactionFailed,
 }
-
