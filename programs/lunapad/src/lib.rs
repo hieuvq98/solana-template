@@ -213,12 +213,9 @@ mod coin98_lunapad {
     if launchpad.is_private_sale && !local_profile.is_whitelisted {
       return Err(ErrorCode::NotWhitelisted.into());
     }
-    if !local_profile.is_registered {
-      return Err(ErrorCode::NotRegistered.into());
-    }
-    if clock.unix_timestamp < launchpad.register_start_timestamp || clock.unix_timestamp > launchpad.register_end_timestamp {
-      return Err(ErrorCode::InvalidSaleTime.into());
-    }
+    // if clock.unix_timestamp < launchpad.register_start_timestamp || clock.unix_timestamp > launchpad.register_end_timestamp {
+    //   return Err(ErrorCode::InvalidSaleTime.into());
+    // }
 
     let local_profile = &mut ctx.accounts.local_profile;
     local_profile.is_registered = true;
@@ -241,9 +238,9 @@ mod coin98_lunapad {
     let vault = &ctx.accounts.vault;
     let vault_signer = &ctx.accounts.vault_signer;
     let vault_token1 = &ctx.accounts.vault_token1;
+    let clock = &ctx.accounts.clock;
     let vault_program = &ctx.accounts.vault_program;
     let token_program = &ctx.accounts.token_program;
-    let clock = &ctx.accounts.clock;
 
     if global_profile.user != *user.to_account_info().key {
       return Err(ErrorCode::InvalidUser.into());
@@ -266,9 +263,9 @@ mod coin98_lunapad {
     if !local_profile.is_registered {
       return Err(ErrorCode::NotRegistered.into());
     }
-    if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
-      return Err(ErrorCode::InvalidSaleTime.into());
-    }
+    // if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
+    //   return Err(ErrorCode::InvalidSaleTime.into());
+    // }
 
     let amount_sol = amount * launchpad.price_in_sol;
     let instruction = &solana_program::system_instruction::transfer(user.key, vault_signer.key, amount_sol);
@@ -339,9 +336,9 @@ mod coin98_lunapad {
     let vault_signer = &ctx.accounts.vault_signer;
     let vault_token0 = &ctx.accounts.vault_token1;
     let vault_token1 = &ctx.accounts.vault_token1;
+    let clock = &ctx.accounts.clock;
     let vault_program = &ctx.accounts.vault_program;
     let token_program = &ctx.accounts.token_program;
-    let clock = &ctx.accounts.clock;
 
     if global_profile.user != *user.to_account_info().key {
       return Err(ErrorCode::InvalidUser.into());
@@ -361,9 +358,9 @@ mod coin98_lunapad {
     if launchpad.is_private_sale && !local_profile.is_whitelisted {
       return Err(ErrorCode::NotWhitelisted.into());
     }
-    if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
-      return Err(ErrorCode::InvalidSaleTime.into());
-    }
+    // if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
+    //   return Err(ErrorCode::InvalidSaleTime.into());
+    // }
 
     let amount_token0 = amount * launchpad.price_in_token;
     let transfer_params = TransferTokenParams {
@@ -534,9 +531,9 @@ pub struct CreateLaunchpadContext<'info> {
 
   pub rent: Sysvar<'info, Rent>,
 
-  pub system_program: AccountInfo<'info>,
-
   pub clock: Sysvar<'info, Clock>,
+
+  pub system_program: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -607,6 +604,7 @@ pub struct RegisterContext<'info> {
 
   pub global_profile: ProgramAccount<'info, GlobalProfile>,
 
+  #[account(mut)]
   pub local_profile: ProgramAccount<'info, LocalProfile>,
 
   pub clock: Sysvar<'info, Clock>,
@@ -643,13 +641,13 @@ pub struct RedeemBySolContext<'info> {
   #[account(mut)]
   pub vault_token1: AccountInfo<'info>,
 
+  pub clock: Sysvar<'info, Clock>,
+
   pub vault_program: AccountInfo<'info>,
 
   pub system_program: AccountInfo<'info>,
 
   pub token_program: AccountInfo<'info>,
-
-  pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
@@ -688,11 +686,11 @@ pub struct RedeemByTokenContext<'info> {
   #[account(mut)]
   pub vault_token1: AccountInfo<'info>,
 
+  pub clock: Sysvar<'info, Clock>,
+
   pub vault_program: AccountInfo<'info>,
 
   pub token_program: AccountInfo<'info>,
-
-  pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
