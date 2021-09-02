@@ -597,10 +597,10 @@ pub struct CreateLocalProfileContext<'info> {
 #[derive(Accounts)]
 pub struct RegisterContext<'info> {
 
+  pub launchpad: ProgramAccount<'info, Launchpad>,
+
   #[account(signer)]
   pub user: AccountInfo<'info>,
-
-  pub launchpad: ProgramAccount<'info, Launchpad>,
 
   pub global_profile: ProgramAccount<'info, GlobalProfile>,
 
@@ -613,9 +613,6 @@ pub struct RegisterContext<'info> {
 #[derive(Accounts)]
 pub struct RedeemBySolContext<'info> {
 
-  #[account(signer)]
-  pub user: AccountInfo<'info>,
-
   pub launchpad: ProgramAccount<'info, Launchpad>,
 
   #[account(seeds = [
@@ -624,6 +621,9 @@ pub struct RedeemBySolContext<'info> {
     &[launchpad.nonce],
   ])]
   pub launchpad_signer: AccountInfo<'info>,
+
+  #[account(signer)]
+  pub user: AccountInfo<'info>,
 
   pub global_profile: ProgramAccount<'info, GlobalProfile>,
 
@@ -653,9 +653,6 @@ pub struct RedeemBySolContext<'info> {
 #[derive(Accounts)]
 pub struct RedeemByTokenContext<'info> {
 
-  #[account(signer)]
-  pub user: AccountInfo<'info>,
-
   pub launchpad: ProgramAccount<'info, Launchpad>,
 
   #[account(seeds = [
@@ -664,6 +661,9 @@ pub struct RedeemByTokenContext<'info> {
     &[launchpad.nonce],
   ])]
   pub launchpad_signer: AccountInfo<'info>,
+
+  #[account(signer)]
+  pub user: AccountInfo<'info>,
 
   pub global_profile: ProgramAccount<'info, GlobalProfile>,
 
@@ -699,9 +699,9 @@ pub struct SetWhitelistContext<'info> {
   #[account(signer)]
   pub owner: AccountInfo<'info>,
 
-  pub user: AccountInfo<'info>,
-
   pub launchpad: ProgramAccount<'info, Launchpad>,
+
+  pub user: AccountInfo<'info>,
 
   #[account(mut)]
   pub local_profile: ProgramAccount<'info, LocalProfile>,
@@ -724,21 +724,21 @@ pub struct SetBlacklistContext<'info> {
 #[derive(Accounts)]
 pub struct TransferOwnershipContext<'info> {
 
-  #[account(mut)]
-  pub launchpad: ProgramAccount<'info, Launchpad>,
-
   #[account(signer)]
   pub owner: AccountInfo<'info>,
+
+  #[account(mut)]
+  pub launchpad: ProgramAccount<'info, Launchpad>,
 }
 
 #[derive(Accounts)]
 pub struct AcceptOwnershipContext<'info> {
 
-  #[account(mut)]
-  pub launchpad: ProgramAccount<'info, Launchpad>,
-
   #[account(signer)]
   pub new_owner: AccountInfo<'info>,
+
+  #[account(mut)]
+  pub launchpad: ProgramAccount<'info, Launchpad>,
 }
 
 #[associated]
