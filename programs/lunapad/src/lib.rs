@@ -5,6 +5,25 @@ use anchor_lang::solana_program;
 mod coin98_lunapad {
   use super::*;
 
+  pub fn init(
+    ctx: Context<InitContext>,
+  ) -> ProgramResult {
+    msg!("Coin98Lunapad: Instruction_Init");
+
+    let root = &ctx.accounts.root;
+    let app_data = &ctx.accounts.app_data;
+
+    if app_data.is_initialized {
+      return Err(ErrorCode::LunapadInitialized.into());
+    }
+
+    let app_data = &mut ctx.accounts.app_data;
+
+    app_data.root = *root.to_account_info().key;
+
+    Ok(())
+  }
+
   pub fn create_launchpad(
     ctx: Context<CreateLaunchpadContext>,
     _launchpad_path: Vec<u8>,
@@ -32,8 +51,13 @@ mod coin98_lunapad {
   ) -> ProgramResult {
     msg!("Coin98Lunapad: Instruction_CreateLaunchpad");
 
+    let root = &ctx.accounts.owner;
+    let app_data = &ctx.accounts.app_data;
     let clock = &ctx.accounts.clock;
 
+    if app_data.root != *root.to_account_info().key {
+      return Err(ErrorCode::InvalidOwner.into());
+    }
     if allow_sol && price_in_sol == 0u64 {
       return Err(ErrorCode::InvalidSolPrice.into());
     }
@@ -151,38 +175,6 @@ mod coin98_lunapad {
     launchpad.redeem_start_timestamp = redeem_start_timestamp;
     launchpad.redeem_end_timestamp = redeem_end_timestamp;
     launchpad.is_finalized = is_finalized;
-
-    Ok(())
-  }
-
-  pub fn create_global_profile(
-    ctx: Context<CreateGlobalProfileContext>,
-    _nonce: u8,
-  ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_CreateGlobalProfile");
-
-    let user = &ctx.accounts.user;
-
-    let profile = &mut ctx.accounts.global_profile;
-
-    profile.user = *user.key;
-
-    Ok(())
-  }
-
-  pub fn create_local_profile(
-    ctx: Context<CreateLocalProfileContext>,
-    _nonce: u8,
-  ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_CreateLocalProfile");
-
-    let launchpad = &ctx.accounts.launchpad;
-    let user = &ctx.accounts.user;
-
-    let profile = &mut ctx.accounts.local_profile;
-
-    profile.launchpad = *launchpad.key;
-    profile.user = *user.key;
 
     Ok(())
   }
@@ -462,9 +454,14 @@ mod coin98_lunapad {
   ) -> ProgramResult {
     msg!("Coin98Lunapad: Instruction_SetBlacklist");
 
+    let root = &ctx.accounts.owner;
+    let app_data = &ctx.accounts.app_data;
     let user = &ctx.accounts.user;
     let profile = &ctx.accounts.global_profile;
 
+    if app_data.root != *root.to_account_info().key {
+      return Err(ErrorCode::InvalidOwner.into());
+    }
     if profile.user != *user.key {
       return Err(ErrorCode::InvalidUser.into());
     }
@@ -513,6 +510,57 @@ mod coin98_lunapad {
 
     Ok(())
   }
+
+  pub fn create_app_data(
+    _ctx: Context<CreateAppDataContext>,
+    _nonce: u8,
+  ) -> ProgramResult {
+    msg!("Coin98Lunapad: Instruction_CreateAppData");
+
+    Ok(())
+  }
+
+  pub fn create_global_profile(
+    ctx: Context<CreateGlobalProfileContext>,
+    _nonce: u8,
+  ) -> ProgramResult {
+    msg!("Coin98Lunapad: Instruction_CreateGlobalProfile");
+
+    let user = &ctx.accounts.user;
+
+    let profile = &mut ctx.accounts.global_profile;
+
+    profile.user = *user.key;
+
+    Ok(())
+  }
+
+  pub fn create_local_profile(
+    ctx: Context<CreateLocalProfileContext>,
+    _nonce: u8,
+  ) -> ProgramResult {
+    msg!("Coin98Lunapad: Instruction_CreateLocalProfile");
+
+    let launchpad = &ctx.accounts.launchpad;
+    let user = &ctx.accounts.user;
+
+    let profile = &mut ctx.accounts.local_profile;
+
+    profile.launchpad = *launchpad.key;
+    profile.user = *user.key;
+
+    Ok(())
+  }
+}
+
+#[derive(Accounts)]
+pub struct InitContext<'info> {
+
+  #[account(signer)]
+  pub root: AccountInfo<'info>,
+
+  #[account(mut)]
+  pub app_data: ProgramAccount<'info, AppData>,
 }
 
 #[derive(Accounts)]
@@ -520,13 +568,15 @@ mod coin98_lunapad {
 pub struct CreateLaunchpadContext<'info> {
 
   #[account(signer)]
-  pub payer: AccountInfo<'info>,
+  pub owner: AccountInfo<'info>,
+
+  pub app_data: ProgramAccount<'info, AppData>,
 
   #[account(init, seeds = [
     &[8, 201, 24, 140, 93, 100, 30, 148],
     &*launchpad_path,
     &[launchpad_nonce]
-  ], payer = payer, space = 340)]
+  ], payer = owner, space = 340)]
   pub launchpad: ProgramAccount<'info, Launchpad>,
 
   pub rent: Sysvar<'info, Rent>,
@@ -546,52 +596,6 @@ pub struct UpdateLaunchpadContext<'info> {
   pub launchpad: ProgramAccount<'info, Launchpad>,
 
   pub clock: Sysvar<'info, Clock>,
-}
-
-#[derive(Accounts)]
-#[instruction(profile_nonce: u8)]
-pub struct CreateGlobalProfileContext<'info> {
-
-  #[account(signer)]
-  pub payer: AccountInfo<'info>,
-
-  pub user: AccountInfo<'info>,
-
-  #[account(init, seeds = [
-    &[139, 126, 195, 157, 204, 134, 142, 146],
-    &[32, 40, 118, 173, 164, 46, 192, 86],
-    user.key.as_ref(),
-    &[profile_nonce]
-  ], payer = payer, space = 49)]
-  pub global_profile: ProgramAccount<'info, GlobalProfile>,
-
-  pub rent: Sysvar<'info, Rent>,
-
-  pub system_program: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
-#[instruction(profile_nonce: u8)]
-pub struct CreateLocalProfileContext<'info> {
-
-  #[account(signer)]
-  pub payer: AccountInfo<'info>,
-
-  pub launchpad: AccountInfo<'info>,
-
-  pub user: AccountInfo<'info>,
-
-  #[account(init, seeds = [
-    &[133, 177, 201, 78, 13, 152, 198, 180],
-    launchpad.key.as_ref(),
-    user.key.as_ref(),
-    &[profile_nonce]
-  ], payer = payer, space = 90)]
-  pub local_profile: ProgramAccount<'info, LocalProfile>,
-
-  pub rent: Sysvar<'info, Rent>,
-
-  pub system_program: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -715,6 +719,8 @@ pub struct SetBlacklistContext<'info> {
   #[account(signer)]
   pub owner: AccountInfo<'info>,
 
+  pub app_data: ProgramAccount<'info, AppData>,
+
   pub user: AccountInfo<'info>,
 
   #[account(mut)]
@@ -741,6 +747,71 @@ pub struct AcceptOwnershipContext<'info> {
   pub launchpad: ProgramAccount<'info, Launchpad>,
 }
 
+#[derive(Accounts)]
+#[instruction(app_data_nonce: u8)]
+pub struct CreateAppDataContext<'info> {
+
+  #[account(signer)]
+  pub payer: AccountInfo<'info>,
+
+  #[account(init, seeds = [
+    &[15, 81, 173, 106, 105, 203, 253, 99],
+    Pubkey::new(&[32, 40, 118, 173, 164, 46, 192, 86, 236, 196, 165, 90, 92, 121, 96, 70, 199, 93, 172, 52, 204, 122, 54, 130, 84, 73, 55, 238, 129, 185, 214, 226]).as_ref(),
+    &[app_data_nonce]
+  ], payer = payer, space = 49)]
+  pub global_profile: ProgramAccount<'info, AppData>,
+
+  pub rent: Sysvar<'info, Rent>,
+
+  pub system_program: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(profile_nonce: u8)]
+pub struct CreateGlobalProfileContext<'info> {
+
+  #[account(signer)]
+  pub payer: AccountInfo<'info>,
+
+  pub user: AccountInfo<'info>,
+
+  #[account(init, seeds = [
+    &[139, 126, 195, 157, 204, 134, 142, 146],
+    &[32, 40, 118, 173, 164, 46, 192, 86],
+    user.key.as_ref(),
+    &[profile_nonce]
+  ], payer = payer, space = 49)]
+  pub global_profile: ProgramAccount<'info, GlobalProfile>,
+
+  pub rent: Sysvar<'info, Rent>,
+
+  pub system_program: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(profile_nonce: u8)]
+pub struct CreateLocalProfileContext<'info> {
+
+  #[account(signer)]
+  pub payer: AccountInfo<'info>,
+
+  pub launchpad: AccountInfo<'info>,
+
+  pub user: AccountInfo<'info>,
+
+  #[account(init, seeds = [
+    &[133, 177, 201, 78, 13, 152, 198, 180],
+    launchpad.key.as_ref(),
+    user.key.as_ref(),
+    &[profile_nonce]
+  ], payer = payer, space = 90)]
+  pub local_profile: ProgramAccount<'info, LocalProfile>,
+
+  pub rent: Sysvar<'info, Rent>,
+
+  pub system_program: AccountInfo<'info>,
+}
+
 #[associated]
 #[derive(Default)]
 pub struct Launchpad {
@@ -765,6 +836,13 @@ pub struct Launchpad {
   pub redeem_start_timestamp: i64,
   pub redeem_end_timestamp: i64,
   pub is_finalized: bool,
+}
+
+#[associated]
+#[derive(Default)]
+pub struct AppData {
+  pub root: Pubkey,
+  pub is_initialized: bool,
 }
 
 #[associated]
@@ -821,6 +899,9 @@ pub enum ErrorCode {
 
   #[msg("Coin98Lunapad: Invalid user.")]
   InvalidUser,
+
+  #[msg("Coin98Lunapad: Lunapad is already initialized.")]
+  LunapadInitialized,
 
   #[msg("Coin98Lunapad: Launchpad setting is finalized.")]
   LaunchpadFinalized,
