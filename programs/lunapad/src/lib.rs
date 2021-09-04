@@ -51,7 +51,7 @@ mod coin98_lunapad {
   ) -> ProgramResult {
     msg!("Coin98Lunapad: Instruction_CreateLaunchpad");
 
-    let root = &ctx.accounts.owner;
+    let root = &ctx.accounts.root;
     let app_data = &ctx.accounts.app_data;
     let clock = &ctx.accounts.clock;
 
@@ -454,7 +454,7 @@ mod coin98_lunapad {
   ) -> ProgramResult {
     msg!("Coin98Lunapad: Instruction_SetBlacklist");
 
-    let root = &ctx.accounts.owner;
+    let root = &ctx.accounts.root;
     let app_data = &ctx.accounts.app_data;
     let user = &ctx.accounts.user;
     let profile = &ctx.accounts.global_profile;
@@ -469,6 +469,44 @@ mod coin98_lunapad {
     let profile = &mut ctx.accounts.global_profile;
 
     profile.is_blacklisted = is_blacklisted;
+
+    Ok(())
+  }
+
+  pub fn transfer_root(ctx: Context<TransferRootContext>,
+    new_root: Pubkey,
+  ) -> ProgramResult {
+    msg!("Coin98Lunapad: Instruction_TransferRoot");
+
+    let root = &ctx.accounts.root;
+    let app_data = &ctx.accounts.app_data;
+
+    if app_data.root != *root.key {
+      return Err(ErrorCode::InvalidOwner.into());
+    }
+
+    let app_data = &mut ctx.accounts.app_data;
+
+    app_data.new_root = new_root;
+
+    Ok(())
+  }
+
+  pub fn accept_root(ctx: Context<AcceptRootContext>,
+  ) -> ProgramResult {
+    msg!("Coin98Lunapad: Instruction_AcceptRoot");
+
+    let new_root = &ctx.accounts.new_root;
+    let app_data = &ctx.accounts.app_data;
+
+    if app_data.new_root != *new_root.key {
+      return Err(ErrorCode::InvalidNewOwner.into());
+    }
+
+    let app_data = &mut ctx.accounts.app_data;
+
+    app_data.root = app_data.new_root;
+    app_data.new_root = solana_program::system_program::ID;
 
     Ok(())
   }
@@ -568,7 +606,7 @@ pub struct InitContext<'info> {
 pub struct CreateLaunchpadContext<'info> {
 
   #[account(signer)]
-  pub owner: AccountInfo<'info>,
+  pub root: AccountInfo<'info>,
 
   pub app_data: ProgramAccount<'info, AppData>,
 
@@ -576,7 +614,7 @@ pub struct CreateLaunchpadContext<'info> {
     &[8, 201, 24, 140, 93, 100, 30, 148],
     &*launchpad_path,
     &[launchpad_nonce]
-  ], payer = owner, space = 340)]
+  ], payer = root, space = 340)]
   pub launchpad: ProgramAccount<'info, Launchpad>,
 
   pub rent: Sysvar<'info, Rent>,
@@ -717,7 +755,7 @@ pub struct SetWhitelistContext<'info> {
 pub struct SetBlacklistContext<'info> {
 
   #[account(signer)]
-  pub owner: AccountInfo<'info>,
+  pub root: AccountInfo<'info>,
 
   pub app_data: ProgramAccount<'info, AppData>,
 
@@ -725,6 +763,26 @@ pub struct SetBlacklistContext<'info> {
 
   #[account(mut)]
   pub global_profile: ProgramAccount<'info, GlobalProfile>,
+}
+
+#[derive(Accounts)]
+pub struct TransferRootContext<'info> {
+
+  #[account(signer)]
+  pub root: AccountInfo<'info>,
+
+  #[account(mut)]
+  pub app_data: ProgramAccount<'info, AppData>,
+}
+
+#[derive(Accounts)]
+pub struct AcceptRootContext<'info> {
+
+  #[account(signer)]
+  pub new_root: AccountInfo<'info>,
+
+  #[account(mut)]
+  pub app_data: ProgramAccount<'info, AppData>,
 }
 
 #[derive(Accounts)]
@@ -758,7 +816,7 @@ pub struct CreateAppDataContext<'info> {
     &[15, 81, 173, 106, 105, 203, 253, 99],
     Pubkey::new(&[32, 40, 118, 173, 164, 46, 192, 86, 236, 196, 165, 90, 92, 121, 96, 70, 199, 93, 172, 52, 204, 122, 54, 130, 84, 73, 55, 238, 129, 185, 214, 226]).as_ref(),
     &[app_data_nonce]
-  ], payer = payer, space = 49)]
+  ], payer = payer, space = 81)]
   pub global_profile: ProgramAccount<'info, AppData>,
 
   pub rent: Sysvar<'info, Rent>,
@@ -842,6 +900,7 @@ pub struct Launchpad {
 #[derive(Default)]
 pub struct AppData {
   pub root: Pubkey,
+  pub new_root: Pubkey,
   pub is_initialized: bool,
 }
 
