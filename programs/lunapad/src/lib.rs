@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program;
+use solana_program::instruction::{ AccountMeta };
 
 #[program]
 mod coin98_lunapad {
@@ -205,9 +206,9 @@ mod coin98_lunapad {
     if launchpad.is_private_sale && !local_profile.is_whitelisted {
       return Err(ErrorCode::NotWhitelisted.into());
     }
-    // if clock.unix_timestamp < launchpad.register_start_timestamp || clock.unix_timestamp > launchpad.register_end_timestamp {
-    //   return Err(ErrorCode::InvalidSaleTime.into());
-    // }
+    if clock.unix_timestamp < launchpad.register_start_timestamp || clock.unix_timestamp > launchpad.register_end_timestamp {
+      return Err(ErrorCode::InvalidSaleTime.into());
+    }
 
     let local_profile = &mut ctx.accounts.local_profile;
     local_profile.is_registered = true;
@@ -255,9 +256,9 @@ mod coin98_lunapad {
     if !local_profile.is_registered {
       return Err(ErrorCode::NotRegistered.into());
     }
-    // if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
-    //   return Err(ErrorCode::InvalidSaleTime.into());
-    // }
+    if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
+      return Err(ErrorCode::InvalidSaleTime.into());
+    }
 
     let amount_sol = amount * launchpad.price_in_sol;
     let instruction = &solana_program::system_instruction::transfer(user.key, vault_signer.key, amount_sol);
@@ -350,9 +351,9 @@ mod coin98_lunapad {
     if launchpad.is_private_sale && !local_profile.is_whitelisted {
       return Err(ErrorCode::NotWhitelisted.into());
     }
-    // if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
-    //   return Err(ErrorCode::InvalidSaleTime.into());
-    // }
+    if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
+      return Err(ErrorCode::InvalidSaleTime.into());
+    }
 
     let amount_token0 = amount * launchpad.price_in_token;
     let transfer_params = TransferTokenParams {
@@ -422,18 +423,27 @@ mod coin98_lunapad {
     Ok(())
   }
 
-  pub fn set_whitelist(
-    ctx: Context<SetWhitelistContext>,
+  pub fn set_whitelist_internal(
+    ctx: Context<SetWhitelistInternalContext>,
     is_whitelisted: bool,
   ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_SetWhitelist");
+    msg!("Coin98Lunapad: Instruction_SetWhitelistInternal");
 
-    let owner = &ctx.accounts.owner;
     let launchpad = &ctx.accounts.launchpad;
+    let launchpad_signer = &ctx.accounts.launchpad_signer;
     let user = &ctx.accounts.user;
     let profile = &ctx.accounts.local_profile;
 
-    if launchpad.owner != *owner.key {
+    let signer_address = Pubkey::create_program_address(
+      &[
+        &[2, 151, 229, 53, 244,  77, 229,  7],
+        launchpad.to_account_info().key.as_ref(),
+        &[launchpad.nonce]
+      ],
+      &ctx.program_id,
+    ).unwrap();
+
+    if signer_address != *launchpad_signer.key {
       return Err(ErrorCode::InvalidOwner.into());
     }
 
@@ -444,6 +454,77 @@ mod coin98_lunapad {
     let profile = &mut ctx.accounts.local_profile;
 
     profile.is_whitelisted = is_whitelisted;
+
+    Ok(())
+  }
+
+  pub fn set_whitelists(
+    ctx: Context<SetWhitelistsContext>,
+    is_whitelisted: bool,
+  ) -> ProgramResult {
+    msg!("Coin98Lunapad: Instruction_SetWhitelists");
+
+    let owner = &ctx.accounts.owner;
+    let launchpad = &ctx.accounts.launchpad;
+    let clock = &ctx.accounts.clock;
+
+    if launchpad.owner != *owner.key {
+      return Err(ErrorCode::InvalidOwner.into());
+    }
+    if clock.unix_timestamp > launchpad.redeem_start_timestamp {
+      return Err(ErrorCode::InvalidRegistrationTime.into());
+    }
+
+    let signer_address = Pubkey::create_program_address(
+      &[
+        &[2, 151, 229, 53, 244,  77, 229,  7],
+        launchpad.to_account_info().key.as_ref(),
+        &[launchpad.nonce]
+      ],
+      &ctx.program_id,
+    ).unwrap();
+    let signer_seeds: &[&[_]] = &[
+      &[2, 151, 229, 53, 244,  77, 229,  7],
+      launchpad.to_account_info().key.as_ref(),
+      &[launchpad.nonce],
+    ];
+
+    let mut set_whitelist_data: Vec<u8> = Vec::new();
+    set_whitelist_data.extend_from_slice(&[237, 84, 123, 225, 100, 205, 44, 246]);
+    if is_whitelisted {
+      set_whitelist_data.extend_from_slice(&[1]);
+    }
+    else {
+      set_whitelist_data.extend_from_slice(&[0]);
+    }
+
+    let accounts = &ctx.remaining_accounts;
+
+    let mut i = 4;
+    while i < accounts.len() {
+      let instruction = solana_program::instruction::Instruction {
+        program_id: *ctx.program_id,
+        accounts: vec![
+          AccountMeta::new_readonly(*launchpad.to_account_info().key, false),
+          AccountMeta::new_readonly(signer_address, true),
+          AccountMeta::new_readonly(*accounts[i].to_account_info().key, false),
+          AccountMeta::new(*accounts[i+1].to_account_info().key, false),
+          AccountMeta::new_readonly(*clock.to_account_info().key, false),
+        ],
+        data: set_whitelist_data.to_vec(),
+      };
+      let result = solana_program::program::invoke_signed(&instruction, &[
+        accounts[0].clone(),
+        accounts[1].clone(),
+        accounts[i].clone(),
+        accounts[i+1].clone(),
+        accounts[2].clone(),
+      ], &[&signer_seeds]);
+      if result.is_err() {
+        return Err(ErrorCode::TransactionFailed.into());
+      }
+      i = i + 2;
+    }
 
     Ok(())
   }
@@ -736,17 +817,28 @@ pub struct RedeemByTokenContext<'info> {
 }
 
 #[derive(Accounts)]
-pub struct SetWhitelistContext<'info> {
-
-  #[account(signer)]
-  pub owner: AccountInfo<'info>,
+pub struct SetWhitelistInternalContext<'info> {
 
   pub launchpad: ProgramAccount<'info, Launchpad>,
+
+  #[account(signer)]
+  pub launchpad_signer: AccountInfo<'info>,
 
   pub user: AccountInfo<'info>,
 
   #[account(mut)]
   pub local_profile: ProgramAccount<'info, LocalProfile>,
+
+  pub clock: Sysvar<'info, Clock>,
+}
+
+#[derive(Accounts)]
+pub struct SetWhitelistsContext<'info> {
+
+  #[account(signer)]
+  pub owner: AccountInfo<'info>,
+
+  pub launchpad: ProgramAccount<'info, Launchpad>,
 
   pub clock: Sysvar<'info, Clock>,
 }
