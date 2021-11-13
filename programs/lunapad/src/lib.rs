@@ -286,7 +286,7 @@ mod coin98_lunapad {
       return Err(ErrorCode::InvalidVaultToken1.into());
     }
 
-    let amount_sol = amount * launchpad.price_in_sol;
+    let amount_sol = amount.checked_mul(launchpad.price_in_sol).unwrap();
     let instruction = &solana_program::system_instruction::transfer(user.key, vault_signer.key, amount_sol);
     let result = solana_program::program::invoke(&instruction, &[
       user.clone(), vault_signer.clone()
@@ -297,7 +297,7 @@ mod coin98_lunapad {
 
     let local_profile = &mut ctx.accounts.local_profile;
 
-    local_profile.redeemed_token += amount;
+    local_profile.redeemed_token = local_profile.redeemed_token.checked_add(amount).unwrap();
 
     let withdraw_params = TransferTokenParams {
       amount: amount,
@@ -411,7 +411,7 @@ mod coin98_lunapad {
       return Err(ErrorCode::InvalidVaultToken1.into());
     }
 
-    let amount_token0 = amount * launchpad.price_in_token;
+    let amount_token0 = amount.checked_mul(launchpad.price_in_token).unwrap();
     let transfer_params = TransferTokenParams {
       amount: amount_token0,
     };
@@ -438,7 +438,7 @@ mod coin98_lunapad {
 
     let local_profile = &mut ctx.accounts.local_profile;
 
-    local_profile.redeemed_token += amount;
+    local_profile.redeemed_token = local_profile.redeemed_token.checked_add(amount).unwrap();
 
     let withdraw_params = TransferTokenParams {
       amount: amount,
