@@ -44,8 +44,8 @@ mod coin98_lunapad {
     vault_token0: Pubkey,
     vault_token1: Pubkey,
     is_private_sale: bool,
-    sale_limit_per_tx: u64,
-    sale_limit_per_user: u64,
+    min_per_tx: u64,
+    max_per_user: u64,
     register_start_timestamp: i64,
     register_end_timestamp: i64,
     redeem_start_timestamp: i64,
@@ -96,8 +96,8 @@ mod coin98_lunapad {
     launchpad.vault_token0 = vault_token0;
     launchpad.vault_token1 = vault_token1;
     launchpad.is_private_sale = is_private_sale;
-    launchpad.sale_limit_per_tx = sale_limit_per_tx;
-    launchpad.sale_limit_per_user = sale_limit_per_user;
+    launchpad.min_per_tx = min_per_tx;
+    launchpad.max_per_user = max_per_user;
     launchpad.register_start_timestamp = register_start_timestamp;
     launchpad.register_end_timestamp = register_end_timestamp;
     launchpad.redeem_start_timestamp = redeem_start_timestamp;
@@ -121,8 +121,8 @@ mod coin98_lunapad {
     vault_token0: Pubkey,
     vault_token1: Pubkey,
     is_private_sale: bool,
-    sale_limit_per_tx: u64,
-    sale_limit_per_user: u64,
+    min_per_tx: u64,
+    max_per_user: u64,
     register_start_timestamp: i64,
     register_end_timestamp: i64,
     redeem_start_timestamp: i64,
@@ -174,8 +174,8 @@ mod coin98_lunapad {
     launchpad.vault_token0 = vault_token0;
     launchpad.vault_token1 = vault_token1;
     launchpad.is_private_sale = is_private_sale;
-    launchpad.sale_limit_per_tx = sale_limit_per_tx;
-    launchpad.sale_limit_per_user = sale_limit_per_user;
+    launchpad.min_per_tx = min_per_tx;
+    launchpad.max_per_user = max_per_user;
     launchpad.register_start_timestamp = register_start_timestamp;
     launchpad.register_end_timestamp = register_end_timestamp;
     launchpad.redeem_start_timestamp = redeem_start_timestamp;
@@ -285,6 +285,13 @@ mod coin98_lunapad {
     if *vault_token1.to_account_info().key != launchpad.vault_token1 {
       return Err(ErrorCode::InvalidVaultToken1.into());
     }
+    if launchpad.min_per_tx > 0 && amount < launchpad.min_per_tx {
+      return Err(ErrorCode::MinAmountNotSatisfied.into());
+    }
+    let redeemed_amount = local_profile.redeemed_token.checked_add(amount).unwrap();
+    if launchpad.max_per_user > 0 && redeemed_amount > launchpad.max_per_user {
+      return Err(ErrorCode::MaxAmountReached.into());
+    }
 
     let amount_sol = amount.checked_mul(launchpad.price_in_sol).unwrap();
     let instruction = &solana_program::system_instruction::transfer(user.key, vault_signer.key, amount_sol);
@@ -297,7 +304,7 @@ mod coin98_lunapad {
 
     let local_profile = &mut ctx.accounts.local_profile;
 
-    local_profile.redeemed_token = local_profile.redeemed_token.checked_add(amount).unwrap();
+    local_profile.redeemed_token = redeemed_amount;
 
     let withdraw_params = TransferTokenParams {
       amount: amount,
@@ -410,6 +417,13 @@ mod coin98_lunapad {
     if *vault_token1.to_account_info().key != launchpad.vault_token1 {
       return Err(ErrorCode::InvalidVaultToken1.into());
     }
+    if launchpad.min_per_tx > 0 && amount < launchpad.min_per_tx {
+      return Err(ErrorCode::MinAmountNotSatisfied.into());
+    }
+    let redeemed_amount = local_profile.redeemed_token.checked_add(amount).unwrap();
+    if launchpad.max_per_user > 0 && redeemed_amount > launchpad.max_per_user {
+      return Err(ErrorCode::MaxAmountReached.into());
+    }
 
     let amount_token0 = amount.checked_mul(launchpad.price_in_token).unwrap();
     let transfer_params = TransferTokenParams {
@@ -438,7 +452,7 @@ mod coin98_lunapad {
 
     let local_profile = &mut ctx.accounts.local_profile;
 
-    local_profile.redeemed_token = local_profile.redeemed_token.checked_add(amount).unwrap();
+    local_profile.redeemed_token = redeemed_amount;
 
     let withdraw_params = TransferTokenParams {
       amount: amount,
@@ -1036,8 +1050,8 @@ pub struct Launchpad {
   pub vault_token0: Pubkey,
   pub vault_token1: Pubkey,
   pub is_private_sale: bool,
-  pub sale_limit_per_tx: u64,
-  pub sale_limit_per_user: u64,
+  pub min_per_tx: u64,
+  pub max_per_user: u64,
   pub register_start_timestamp: i64,
   pub register_end_timestamp: i64,
   pub redeem_start_timestamp: i64,
@@ -1140,6 +1154,12 @@ pub enum ErrorCode {
 
   #[msg("Coin98Lunapad: Launchpad setting is finalized.")]
   LaunchpadFinalized,
+
+  #[msg("Coin98Lunapad: Min amount reached")]
+  MaxAmountReached,
+
+  #[msg("Coin98Lunapad: Min amount not satisfied.")]
+  MinAmountNotSatisfied,
 
   #[msg("Coin98Lunapad: Only allowed during registration time.")]
   NotInRegistrationTime,
