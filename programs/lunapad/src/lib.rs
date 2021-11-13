@@ -266,6 +266,9 @@ mod coin98_lunapad {
     if *vault_program.key != launchpad.vault_program_id {
       return Err(ErrorCode::InvalidVaultProgramId.into());
     }
+    if *token_program.key != anchor_spl::token::ID {
+      return Err(ErrorCode::InvalidVaultProgramId.into());
+    }
 
     let amount_sol = amount * launchpad.price_in_sol;
     let instruction = &solana_program::system_instruction::transfer(user.key, vault_signer.key, amount_sol);
@@ -362,6 +365,9 @@ mod coin98_lunapad {
       return Err(ErrorCode::InvalidSaleTime.into());
     }
     if *vault_program.key != launchpad.vault_program_id {
+      return Err(ErrorCode::InvalidVaultProgramId.into());
+    }
+    if *token_program.key != anchor_spl::token::ID {
       return Err(ErrorCode::InvalidVaultProgramId.into());
     }
 

@@ -7,6 +7,7 @@ edition = "2018"
 
 [dependencies]
 anchor-lang = "0.13.2"
+anchor-spl = "0.13.2"
 solana-program = "1.7.8"
 
 [features]
