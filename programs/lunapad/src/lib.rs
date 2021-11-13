@@ -37,6 +37,7 @@ mod coin98_lunapad {
     price_in_token: u64,
     token0_mint: Pubkey,
     token1_mint: Pubkey,
+    vault_program_id: Pubkey,
     vault: Pubkey,
     vault_signer: Pubkey,
     vault_token0: Pubkey,
@@ -88,6 +89,7 @@ mod coin98_lunapad {
     launchpad.price_in_token = price_in_token;
     launchpad.token0_mint = token0_mint;
     launchpad.token1_mint = token1_mint;
+    launchpad.vault_program_id = vault_program_id;
     launchpad.vault = vault;
     launchpad.vault_signer = vault_signer;
     launchpad.vault_token0 =  vault_token0;
@@ -112,6 +114,7 @@ mod coin98_lunapad {
     price_in_token: u64,
     token0_mint: Pubkey,
     token1_mint: Pubkey,
+    vault_program_id: Pubkey,
     vault: Pubkey,
     vault_signer: Pubkey,
     vault_token0: Pubkey,
@@ -164,6 +167,7 @@ mod coin98_lunapad {
     launchpad.price_in_token = price_in_token;
     launchpad.token0_mint = token0_mint;
     launchpad.token1_mint = token1_mint;
+    launchpad.vault_program_id = vault_program_id;
     launchpad.vault = vault;
     launchpad.vault_signer = vault_signer;
     launchpad.vault_token0 =  vault_token0;
@@ -259,6 +263,9 @@ mod coin98_lunapad {
     if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
       return Err(ErrorCode::InvalidSaleTime.into());
     }
+    if *vault_program.key != launchpad.vault_program_id {
+      return Err(ErrorCode::InvalidVaultProgramId.into());
+    }
 
     let amount_sol = amount * launchpad.price_in_sol;
     let instruction = &solana_program::system_instruction::transfer(user.key, vault_signer.key, amount_sol);
@@ -323,11 +330,11 @@ mod coin98_lunapad {
     let launchpad_signer = &ctx.accounts.launchpad_signer;
     let global_profile = &ctx.accounts.global_profile;
     let local_profile = &ctx.accounts.local_profile;
-    let user_token0 = &ctx.accounts.user_token1;
+    let user_token0 = &ctx.accounts.user_token0;
     let user_token1 = &ctx.accounts.user_token1;
     let vault = &ctx.accounts.vault;
     let vault_signer = &ctx.accounts.vault_signer;
-    let vault_token0 = &ctx.accounts.vault_token1;
+    let vault_token0 = &ctx.accounts.vault_token0;
     let vault_token1 = &ctx.accounts.vault_token1;
     let clock = &ctx.accounts.clock;
     let vault_program = &ctx.accounts.vault_program;
@@ -353,6 +360,9 @@ mod coin98_lunapad {
     }
     if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
       return Err(ErrorCode::InvalidSaleTime.into());
+    }
+    if *vault_program.key != launchpad.vault_program_id {
+      return Err(ErrorCode::InvalidVaultProgramId.into());
     }
 
     let amount_token0 = amount * launchpad.price_in_token;
@@ -974,6 +984,7 @@ pub struct Launchpad {
   pub price_in_token: u64,
   pub token0_mint: Pubkey,
   pub token1_mint: Pubkey,
+  pub vault_program_id: Pubkey,
   pub vault: Pubkey,
   pub vault_signer: Pubkey,
   pub vault_token0: Pubkey,
@@ -1050,6 +1061,9 @@ pub enum ErrorCode {
 
   #[msg("Coin98Lunapad: Invalid user.")]
   InvalidUser,
+
+  #[msg("Coin98Lunapad: Invalid Vault Program Id.")]
+  InvalidVaultProgramId,
 
   #[msg("Coin98Lunapad: Lunapad is already initialized.")]
   LunapadInitialized,
