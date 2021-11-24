@@ -3,6 +3,8 @@ use anchor_lang::solana_program;
 use anchor_spl::token::{ TokenAccount };
 use solana_program::instruction::{ AccountMeta };
 
+declare_id!("SS1UpfZ3TYXHiPUvQFFujhALqrcoN6BGnCqsbBkdLKd");
+
 #[program]
 mod coin98_starship {
   use super::*;
@@ -749,7 +751,7 @@ pub struct InitContext<'info> {
   pub root: AccountInfo<'info>,
 
   #[account(mut)]
-  pub app_data: ProgramAccount<'info, AppData>,
+  pub app_data: Account<'info, AppData>,
 }
 
 #[derive(Accounts)]
@@ -759,14 +761,13 @@ pub struct CreateLaunchpadContext<'info> {
   #[account(signer)]
   pub root: AccountInfo<'info>,
 
-  pub app_data: ProgramAccount<'info, AppData>,
+  pub app_data: Account<'info, AppData>,
 
   #[account(init, seeds = [
     &[8, 201, 24, 140, 93, 100, 30, 148],
     &*launchpad_path,
-    &[launchpad_nonce]
-  ], payer = root, space = 340)]
-  pub launchpad: ProgramAccount<'info, Launchpad>,
+  ], bump = launchpad_nonce, payer = root, space = 340)]
+  pub launchpad: Account<'info, Launchpad>,
 
   pub rent: Sysvar<'info, Rent>,
 
@@ -782,7 +783,7 @@ pub struct UpdateLaunchpadContext<'info> {
   pub owner: AccountInfo<'info>,
 
   #[account(mut)]
-  pub launchpad: ProgramAccount<'info, Launchpad>,
+  pub launchpad: Account<'info, Launchpad>,
 
   pub clock: Sysvar<'info, Clock>,
 }
@@ -790,15 +791,15 @@ pub struct UpdateLaunchpadContext<'info> {
 #[derive(Accounts)]
 pub struct RegisterContext<'info> {
 
-  pub launchpad: ProgramAccount<'info, Launchpad>,
+  pub launchpad: Account<'info, Launchpad>,
 
   #[account(signer)]
   pub user: AccountInfo<'info>,
 
-  pub global_profile: ProgramAccount<'info, GlobalProfile>,
+  pub global_profile: Account<'info, GlobalProfile>,
 
   #[account(mut)]
-  pub local_profile: ProgramAccount<'info, LocalProfile>,
+  pub local_profile: Account<'info, LocalProfile>,
 
   pub clock: Sysvar<'info, Clock>,
 }
@@ -806,25 +807,24 @@ pub struct RegisterContext<'info> {
 #[derive(Accounts)]
 pub struct RedeemBySolContext<'info> {
 
-  pub launchpad: ProgramAccount<'info, Launchpad>,
+  pub launchpad: Account<'info, Launchpad>,
 
   #[account(seeds = [
     &[2, 151, 229, 53, 244,  77, 229,  7],
     launchpad.to_account_info().key.as_ref(),
-    &[launchpad.nonce],
-  ])]
+  ], bump = launchpad.nonce)]
   pub launchpad_signer: AccountInfo<'info>,
 
   #[account(signer)]
   pub user: AccountInfo<'info>,
 
-  pub global_profile: ProgramAccount<'info, GlobalProfile>,
+  pub global_profile: Account<'info, GlobalProfile>,
 
   #[account(mut)]
-  pub local_profile: ProgramAccount<'info, LocalProfile>,
+  pub local_profile: Account<'info, LocalProfile>,
 
   #[account(mut)]
-  pub user_token1: CpiAccount<'info, TokenAccount>,
+  pub user_token1: Account<'info, TokenAccount>,
 
   pub vault: AccountInfo<'info>,
 
@@ -832,7 +832,7 @@ pub struct RedeemBySolContext<'info> {
   pub vault_signer: AccountInfo<'info>,
 
   #[account(mut)]
-  pub vault_token1: CpiAccount<'info, TokenAccount>,
+  pub vault_token1: Account<'info, TokenAccount>,
 
   pub clock: Sysvar<'info, Clock>,
 
@@ -846,38 +846,37 @@ pub struct RedeemBySolContext<'info> {
 #[derive(Accounts)]
 pub struct RedeemByTokenContext<'info> {
 
-  pub launchpad: ProgramAccount<'info, Launchpad>,
+  pub launchpad: Account<'info, Launchpad>,
 
   #[account(seeds = [
     &[2, 151, 229, 53, 244,  77, 229,  7],
     launchpad.to_account_info().key.as_ref(),
-    &[launchpad.nonce],
-  ])]
+  ], bump = launchpad.nonce)]
   pub launchpad_signer: AccountInfo<'info>,
 
   #[account(signer)]
   pub user: AccountInfo<'info>,
 
-  pub global_profile: ProgramAccount<'info, GlobalProfile>,
+  pub global_profile: Account<'info, GlobalProfile>,
 
   #[account(mut)]
-  pub local_profile: ProgramAccount<'info, LocalProfile>,
+  pub local_profile: Account<'info, LocalProfile>,
 
   #[account(mut)]
-  pub user_token0: CpiAccount<'info, TokenAccount>,
+  pub user_token0: Account<'info, TokenAccount>,
 
   #[account(mut)]
-  pub user_token1: CpiAccount<'info, TokenAccount>,
+  pub user_token1: Account<'info, TokenAccount>,
 
   pub vault: AccountInfo<'info>,
 
   pub vault_signer: AccountInfo<'info>,
 
   #[account(mut)]
-  pub vault_token0: CpiAccount<'info, TokenAccount>,
+  pub vault_token0: Account<'info, TokenAccount>,
 
   #[account(mut)]
-  pub vault_token1: CpiAccount<'info, TokenAccount>,
+  pub vault_token1: Account<'info, TokenAccount>,
 
   pub clock: Sysvar<'info, Clock>,
 
@@ -889,7 +888,7 @@ pub struct RedeemByTokenContext<'info> {
 #[derive(Accounts)]
 pub struct SetWhitelistInternalContext<'info> {
 
-  pub launchpad: ProgramAccount<'info, Launchpad>,
+  pub launchpad: Account<'info, Launchpad>,
 
   #[account(signer)]
   pub launchpad_signer: AccountInfo<'info>,
@@ -897,7 +896,7 @@ pub struct SetWhitelistInternalContext<'info> {
   pub user: AccountInfo<'info>,
 
   #[account(mut)]
-  pub local_profile: ProgramAccount<'info, LocalProfile>,
+  pub local_profile: Account<'info, LocalProfile>,
 
   pub clock: Sysvar<'info, Clock>,
 }
@@ -908,7 +907,7 @@ pub struct SetWhitelistsContext<'info> {
   #[account(signer)]
   pub owner: AccountInfo<'info>,
 
-  pub launchpad: ProgramAccount<'info, Launchpad>,
+  pub launchpad: Account<'info, Launchpad>,
 
   pub clock: Sysvar<'info, Clock>,
 }
@@ -919,12 +918,12 @@ pub struct SetBlacklistContext<'info> {
   #[account(signer)]
   pub root: AccountInfo<'info>,
 
-  pub app_data: ProgramAccount<'info, AppData>,
+  pub app_data: Account<'info, AppData>,
 
   pub user: AccountInfo<'info>,
 
   #[account(mut)]
-  pub global_profile: ProgramAccount<'info, GlobalProfile>,
+  pub global_profile: Account<'info, GlobalProfile>,
 }
 
 #[derive(Accounts)]
@@ -934,7 +933,7 @@ pub struct TransferRootContext<'info> {
   pub root: AccountInfo<'info>,
 
   #[account(mut)]
-  pub app_data: ProgramAccount<'info, AppData>,
+  pub app_data: Account<'info, AppData>,
 }
 
 #[derive(Accounts)]
@@ -944,7 +943,7 @@ pub struct AcceptRootContext<'info> {
   pub new_root: AccountInfo<'info>,
 
   #[account(mut)]
-  pub app_data: ProgramAccount<'info, AppData>,
+  pub app_data: Account<'info, AppData>,
 }
 
 #[derive(Accounts)]
@@ -954,7 +953,7 @@ pub struct TransferOwnershipContext<'info> {
   pub owner: AccountInfo<'info>,
 
   #[account(mut)]
-  pub launchpad: ProgramAccount<'info, Launchpad>,
+  pub launchpad: Account<'info, Launchpad>,
 }
 
 #[derive(Accounts)]
@@ -964,7 +963,7 @@ pub struct AcceptOwnershipContext<'info> {
   pub new_owner: AccountInfo<'info>,
 
   #[account(mut)]
-  pub launchpad: ProgramAccount<'info, Launchpad>,
+  pub launchpad: Account<'info, Launchpad>,
 }
 
 #[derive(Accounts)]
@@ -977,9 +976,8 @@ pub struct CreateAppDataContext<'info> {
   #[account(init, seeds = [
     &[15, 81, 173, 106, 105, 203, 253, 99],
     Pubkey::new(&[32, 40, 118, 173, 164, 46, 192, 86, 236, 196, 165, 90, 92, 121, 96, 70, 199, 93, 172, 52, 204, 122, 54, 130, 84, 73, 55, 238, 129, 185, 214, 226]).as_ref(),
-    &[app_data_nonce]
-  ], payer = payer, space = 81)]
-  pub global_profile: ProgramAccount<'info, AppData>,
+  ], bump = app_data_nonce, payer = payer, space = 81)]
+  pub global_profile: Account<'info, AppData>,
 
   pub rent: Sysvar<'info, Rent>,
 
@@ -999,9 +997,8 @@ pub struct CreateGlobalProfileContext<'info> {
     &[139, 126, 195, 157, 204, 134, 142, 146],
     &[32, 40, 118, 173, 164, 46, 192, 86],
     user.key.as_ref(),
-    &[profile_nonce]
-  ], payer = payer, space = 49)]
-  pub global_profile: ProgramAccount<'info, GlobalProfile>,
+  ], bump = profile_nonce, payer = payer, space = 49)]
+  pub global_profile: Account<'info, GlobalProfile>,
 
   pub rent: Sysvar<'info, Rent>,
 
@@ -1023,17 +1020,15 @@ pub struct CreateLocalProfileContext<'info> {
     &[133, 177, 201, 78, 13, 152, 198, 180],
     launchpad.key.as_ref(),
     user.key.as_ref(),
-    &[profile_nonce]
-  ], payer = payer, space = 90)]
-  pub local_profile: ProgramAccount<'info, LocalProfile>,
+  ], bump = profile_nonce, payer = payer, space = 90)]
+  pub local_profile: Account<'info, LocalProfile>,
 
   pub rent: Sysvar<'info, Rent>,
 
   pub system_program: AccountInfo<'info>,
 }
 
-#[associated]
-#[derive(Default)]
+#[account]
 pub struct Launchpad {
   pub nonce: u8,
   pub owner: Pubkey,
@@ -1059,23 +1054,20 @@ pub struct Launchpad {
   pub is_finalized: bool,
 }
 
-#[associated]
-#[derive(Default)]
+#[account]
 pub struct AppData {
   pub root: Pubkey,
   pub new_root: Pubkey,
   pub is_initialized: bool,
 }
 
-#[associated]
-#[derive(Default)]
+#[account]
 pub struct GlobalProfile {
   pub user: Pubkey,
   pub is_blacklisted: bool,
 }
 
-#[associated]
-#[derive(Default)]
+#[account]
 pub struct LocalProfile {
   pub launchpad: Pubkey,
   pub user: Pubkey,
