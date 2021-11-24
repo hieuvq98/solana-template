@@ -4,19 +4,19 @@ use anchor_spl::token::{ TokenAccount };
 use solana_program::instruction::{ AccountMeta };
 
 #[program]
-mod coin98_lunapad {
+mod coin98_starship {
   use super::*;
 
   pub fn init(
     ctx: Context<InitContext>,
   ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_Init");
+    msg!("Coin98Starship: Instruction_Init");
 
     let root = &ctx.accounts.root;
     let app_data = &ctx.accounts.app_data;
 
     if app_data.is_initialized {
-      return Err(ErrorCode::LunapadInitialized.into());
+      return Err(ErrorCode::StarshipInitialized.into());
     }
 
     let app_data = &mut ctx.accounts.app_data;
@@ -52,7 +52,7 @@ mod coin98_lunapad {
     redeem_end_timestamp: i64,
     is_finalized: bool,
   ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_CreateLaunchpad");
+    msg!("Coin98Starship: Instruction_CreateLaunchpad");
 
     let root = &ctx.accounts.root;
     let app_data = &ctx.accounts.app_data;
@@ -129,7 +129,7 @@ mod coin98_lunapad {
     redeem_end_timestamp: i64,
     is_finalized: bool,
   ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_UpdateLaunchpad");
+    msg!("Coin98Starship: Instruction_UpdateLaunchpad");
 
     let owner = &ctx.accounts.owner;
     let launchpad = &ctx.accounts.launchpad;
@@ -188,7 +188,7 @@ mod coin98_lunapad {
   pub fn register(
     ctx: Context<RegisterContext>,
   ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_Register");
+    msg!("Coin98Starship: Instruction_Register");
 
     let user = &ctx.accounts.user;
     let launchpad = &ctx.accounts.launchpad;
@@ -225,7 +225,7 @@ mod coin98_lunapad {
     ctx: Context<RedeemBySolContext>,
     amount: u64,
   ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_RedeemBySOL");
+    msg!("Coin98Starship: Instruction_RedeemBySOL");
 
     let user = &ctx.accounts.user;
     let launchpad = &ctx.accounts.launchpad;
@@ -349,7 +349,7 @@ mod coin98_lunapad {
     ctx: Context<RedeemByTokenContext>,
     amount: u64,
   ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_RedeemByToken");
+    msg!("Coin98Starship: Instruction_RedeemByToken");
 
     let user = &ctx.accounts.user;
     let launchpad = &ctx.accounts.launchpad;
@@ -497,7 +497,7 @@ mod coin98_lunapad {
     ctx: Context<SetWhitelistInternalContext>,
     is_whitelisted: bool,
   ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_SetWhitelistInternal");
+    msg!("Coin98Starship: Instruction_SetWhitelistInternal");
 
     let launchpad = &ctx.accounts.launchpad;
     let launchpad_signer = &ctx.accounts.launchpad_signer;
@@ -532,7 +532,7 @@ mod coin98_lunapad {
     ctx: Context<SetWhitelistsContext>,
     is_whitelisted: bool,
   ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_SetWhitelists");
+    msg!("Coin98Starship: Instruction_SetWhitelists");
 
     let owner = &ctx.accounts.owner;
     let launchpad = &ctx.accounts.launchpad;
@@ -603,7 +603,7 @@ mod coin98_lunapad {
     ctx: Context<SetBlacklistContext>,
     is_blacklisted: bool,
   ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_SetBlacklist");
+    msg!("Coin98Starship: Instruction_SetBlacklist");
 
     let root = &ctx.accounts.root;
     let app_data = &ctx.accounts.app_data;
@@ -627,7 +627,7 @@ mod coin98_lunapad {
   pub fn transfer_root(ctx: Context<TransferRootContext>,
     new_root: Pubkey,
   ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_TransferRoot");
+    msg!("Coin98Starship: Instruction_TransferRoot");
 
     let root = &ctx.accounts.root;
     let app_data = &ctx.accounts.app_data;
@@ -645,7 +645,7 @@ mod coin98_lunapad {
 
   pub fn accept_root(ctx: Context<AcceptRootContext>,
   ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_AcceptRoot");
+    msg!("Coin98Starship: Instruction_AcceptRoot");
 
     let new_root = &ctx.accounts.new_root;
     let app_data = &ctx.accounts.app_data;
@@ -665,7 +665,7 @@ mod coin98_lunapad {
   pub fn transfer_ownership(ctx: Context<TransferOwnershipContext>,
     new_owner: Pubkey,
   ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_TransferOwnership");
+    msg!("Coin98Starship: Instruction_TransferOwnership");
 
     let owner = &ctx.accounts.owner;
     let launchpad = &ctx.accounts.launchpad;
@@ -683,7 +683,7 @@ mod coin98_lunapad {
 
   pub fn accept_ownership(ctx: Context<AcceptOwnershipContext>,
   ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_AcceptOwnership");
+    msg!("Coin98Starship: Instruction_AcceptOwnership");
 
     let new_owner = &ctx.accounts.new_owner;
     let launchpad = &ctx.accounts.launchpad;
@@ -704,7 +704,7 @@ mod coin98_lunapad {
     _ctx: Context<CreateAppDataContext>,
     _nonce: u8,
   ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_CreateAppData");
+    msg!("Coin98Starship: Instruction_CreateAppData");
 
     Ok(())
   }
@@ -713,7 +713,7 @@ mod coin98_lunapad {
     ctx: Context<CreateGlobalProfileContext>,
     _nonce: u8,
   ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_CreateGlobalProfile");
+    msg!("Coin98Starship: Instruction_CreateGlobalProfile");
 
     let user = &ctx.accounts.user;
 
@@ -728,7 +728,7 @@ mod coin98_lunapad {
     ctx: Context<CreateLocalProfileContext>,
     _nonce: u8,
   ) -> ProgramResult {
-    msg!("Coin98Lunapad: Instruction_CreateLocalProfile");
+    msg!("Coin98Starship: Instruction_CreateLocalProfile");
 
     let launchpad = &ctx.accounts.launchpad;
     let user = &ctx.accounts.user;
@@ -1092,96 +1092,96 @@ pub struct TransferTokenParams {
 #[error]
 pub enum ErrorCode {
 
-  #[msg("Coin98Lunapad: Forbidden.")]
+  #[msg("Coin98Starship: Forbidden.")]
   Blacklisted,
 
-  #[msg("Coin98Lunapad: Time must be set in the future.")]
+  #[msg("Coin98Starship: Time must be set in the future.")]
   FutureTimeRequired,
 
-  #[msg("Coin98Lunapad: Invalid launchpad.")]
+  #[msg("Coin98Starship: Invalid launchpad.")]
   InvalidLanchpad,
 
-  #[msg("Coin98Lunapad: Not an owner.")]
+  #[msg("Coin98Starship: Not an owner.")]
   InvalidOwner,
 
-  #[msg("Coin98Lunapad: Not new owner.")]
+  #[msg("Coin98Starship: Not new owner.")]
   InvalidNewOwner,
 
-  #[msg("Coin98Lunapad: Invalid registration time range.")]
+  #[msg("Coin98Starship: Invalid registration time range.")]
   InvalidRegistrationTime,
 
-  #[msg("Coin98Lunapad: Invalid sale time range.")]
+  #[msg("Coin98Starship: Invalid sale time range.")]
   InvalidSaleTime,
 
-  #[msg("Coin98Lunapad: Invalid SOL price.")]
+  #[msg("Coin98Starship: Invalid SOL price.")]
   InvalidSolPrice,
 
-  #[msg("Coin98Lunapad: Invalid token price.")]
+  #[msg("Coin98Starship: Invalid token price.")]
   InvalidTokenPrice,
 
-  #[msg("Coin98Lunapad: Invalid user.")]
+  #[msg("Coin98Starship: Invalid user.")]
   InvalidUser,
 
-  #[msg("Coin98Lunapad: Invalid user Token 0 Account.")]
+  #[msg("Coin98Starship: Invalid user Token 0 Account.")]
   InvalidUserToken0,
 
-  #[msg("Coin98Lunapad: Invalid user Token 1 Account.")]
+  #[msg("Coin98Starship: Invalid user Token 1 Account.")]
   InvalidUserToken1,
 
-  #[msg("Coin98Lunapad: Invalid Vault Program Id.")]
+  #[msg("Coin98Starship: Invalid Vault Program Id.")]
   InvalidVaultProgramId,
 
-  #[msg("Coin98Lunapad: Invalid Vault.")]
+  #[msg("Coin98Starship: Invalid Vault.")]
   InvalidVault,
 
-  #[msg("Coin98Lunapad: Invalid Vault Signer.")]
+  #[msg("Coin98Starship: Invalid Vault Signer.")]
   InvalidVaultSigner,
 
-  #[msg("Coin98Lunapad: Invalid Vault Token 0 Account.")]
+  #[msg("Coin98Starship: Invalid Vault Token 0 Account.")]
   InvalidVaultToken0,
 
-  #[msg("Coin98Lunapad: Invalid Vault Token 1 Account.")]
+  #[msg("Coin98Starship: Invalid Vault Token 1 Account.")]
   InvalidVaultToken1,
 
-  #[msg("Coin98Lunapad: Not an Token 0 account.")]
+  #[msg("Coin98Starship: Not an Token 0 account.")]
   InvalidToken0,
 
-  #[msg("Coin98Lunapad: Not an Token 1 account.")]
+  #[msg("Coin98Starship: Not an Token 1 account.")]
   InvalidToken1,
 
-  #[msg("Coin98Lunapad: Lunapad is already initialized.")]
-  LunapadInitialized,
-
-  #[msg("Coin98Lunapad: Launchpad setting is finalized.")]
+  #[msg("Coin98Starship: Launchpad setting is finalized.")]
   LaunchpadFinalized,
 
-  #[msg("Coin98Lunapad: Min amount reached")]
+  #[msg("Coin98Starship: Min amount reached")]
   MaxAmountReached,
 
-  #[msg("Coin98Lunapad: Min amount not satisfied.")]
+  #[msg("Coin98Starship: Min amount not satisfied.")]
   MinAmountNotSatisfied,
 
-  #[msg("Coin98Lunapad: Only allowed during registration time.")]
+  #[msg("Coin98Starship: Only allowed during registration time.")]
   NotInRegistrationTime,
 
-  #[msg("Coin98Lunapad: Only allowed during sale time.")]
+  #[msg("Coin98Starship: Only allowed during sale time.")]
   NotItSaleTime,
 
-  #[msg("Coin98Lunapad: Not registered.")]
+  #[msg("Coin98Starship: Not registered.")]
   NotRegistered,
 
-  #[msg("Coin98Lunapad: Not allowed.")]
+  #[msg("Coin98Starship: Not allowed.")]
   NotWhitelisted,
 
-  #[msg("Coin98Lunapad: Registration and sale time overlap.")]
+  #[msg("Coin98Starship: Registration and sale time overlap.")]
   RegistrationAndSaleTimeOverlap,
 
-  #[msg("Coin98Lunapad: Redeem by SOL not allowed.")]
+  #[msg("Coin98Starship: Redeem by SOL not allowed.")]
   RedeemBySolNotAllowed,
 
-  #[msg("Coin98Lunapad: Redeem by token not allowed.")]
+  #[msg("Coin98Starship: Redeem by token not allowed.")]
   RedeemByTokenNotAllowed,
 
-  #[msg("Coin98Lunapad: Transaction failed.")]
+  #[msg("Coin98Starship: Starship is already initialized.")]
+  StarshipInitialized,
+
+  #[msg("Coin98Starship: Transaction failed.")]
   TransactionFailed,
 }

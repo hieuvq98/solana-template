@@ -1,5 +1,5 @@
 [package]
-name = "coin98-lunapad"
+name = "coin98-starship"
 version = "1.0.0"
 authors = ["lukaz"]
 license = "Apache-2.0"
@@ -17,5 +17,5 @@ no-entrypoint = []
 no-idl = []
 
 [lib]
-name = "lunapad"
+name = "starship"
 crate-type = ["cdylib", "lib"]
