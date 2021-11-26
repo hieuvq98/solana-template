@@ -3,7 +3,7 @@ use anchor_lang::solana_program;
 use anchor_spl::token::{ TokenAccount };
 use solana_program::instruction::{ AccountMeta };
 
-declare_id!("SS1UpfZ3TYXHiPUvQFFujhALqrcoN6BGnCqsbBkdLKd");
+declare_id!("SS2SWSSZnSZkvSunyCFpY5FtwbP68qArQaYysV55Jkc");
 
 #[program]
 mod coin98_starship {
