@@ -24,6 +24,7 @@ mod coin98_starship {
     let app_data = &mut ctx.accounts.app_data;
 
     app_data.root = *root.to_account_info().key;
+    app_data.is_initialized = true;
 
     Ok(())
   }
@@ -214,7 +215,7 @@ mod coin98_starship {
       return Err(ErrorCode::NotWhitelisted.into());
     }
     if clock.unix_timestamp < launchpad.register_start_timestamp || clock.unix_timestamp > launchpad.register_end_timestamp {
-      return Err(ErrorCode::InvalidSaleTime.into());
+      return Err(ErrorCode::InvalidRegistrationTime.into());
     }
 
     let local_profile = &mut ctx.accounts.local_profile;
@@ -766,7 +767,7 @@ pub struct CreateLaunchpadContext<'info> {
   #[account(init, seeds = [
     &[8, 201, 24, 140, 93, 100, 30, 148],
     &*launchpad_path,
-  ], bump = launchpad_nonce, payer = root, space = 340)]
+  ], bump = launchpad_nonce, payer = root, space = 372)]
   pub launchpad: Account<'info, Launchpad>,
 
   pub rent: Sysvar<'info, Rent>,
