@@ -752,7 +752,7 @@ pub struct CreateLaunchpadContext<'info> {
   #[account(init, seeds = [
     &[8, 201, 24, 140, 93, 100, 30, 148],
     &*launchpad_path,
-  ], bump = launchpad_nonce, payer = root, space = 372)]
+  ], bump = launchpad_nonce, payer = root, space = 404)]
   pub launchpad: Account<'info, Launchpad>,
 
   pub rent: Sysvar<'info, Rent>,
