@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program;
-use anchor_spl::token::{ TokenAccount };
 use solana_program::instruction::{ AccountMeta };
 
 declare_id!("SS2SWSSZnSZkvSunyCFpY5FtwbP68qArQaYysV55Jkc");
@@ -39,6 +38,7 @@ mod coin98_starship {
     price_in_sol: u64,
     allow_token: bool,
     price_in_token: u64,
+    token_program_id: Pubkey,
     token0_mint: Pubkey,
     token1_mint: Pubkey,
     vault_program_id: Pubkey,
@@ -91,6 +91,7 @@ mod coin98_starship {
     launchpad.price_in_sol = price_in_sol;
     launchpad.allow_token = allow_token;
     launchpad.price_in_token = price_in_token;
+    launchpad.token_program_id = token_program_id;
     launchpad.token0_mint = token0_mint;
     launchpad.token1_mint = token1_mint;
     launchpad.vault_program_id = vault_program_id;
@@ -116,6 +117,7 @@ mod coin98_starship {
     price_in_sol: u64,
     allow_token: bool,
     price_in_token: u64,
+    token_program_id: Pubkey,
     token0_mint: Pubkey,
     token1_mint: Pubkey,
     vault_program_id: Pubkey,
@@ -169,6 +171,7 @@ mod coin98_starship {
     launchpad.price_in_sol = price_in_sol;
     launchpad.allow_token = allow_token;
     launchpad.price_in_token = price_in_token;
+    launchpad.token_program_id = token_program_id;
     launchpad.token0_mint = token0_mint;
     launchpad.token1_mint = token1_mint;
     launchpad.vault_program_id = vault_program_id;
@@ -265,13 +268,7 @@ mod coin98_starship {
       return Err(ErrorCode::NotRegistered.into());
     }
     if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
-      return Err(ErrorCode::InvalidSaleTime.into());
-    }
-    if user_token1.owner != *user.to_account_info().key {
-      return Err(ErrorCode::InvalidUserToken1.into());
-    }
-    if user_token1.mint != launchpad.token1_mint {
-      return Err(ErrorCode::InvalidToken1.into());
+      return Err(ErrorCode::NotInSaleTime.into());
     }
     if *vault_program.key != launchpad.vault_program_id {
       return Err(ErrorCode::InvalidVaultProgramId.into());
@@ -279,13 +276,13 @@ mod coin98_starship {
     if *vault.key != launchpad.vault {
       return Err(ErrorCode::InvalidVault.into());
     }
-    if *token_program.key != anchor_spl::token::ID {
+    if *token_program.key != launchpad.token_program_id {
       return Err(ErrorCode::InvalidVaultProgramId.into());
     }
     if *vault_signer.key != launchpad.vault_signer {
       return Err(ErrorCode::InvalidVaultSigner.into());
     }
-    if *vault_token1.to_account_info().key != launchpad.vault_token1 {
+    if *vault_token1.key != launchpad.vault_token1 {
       return Err(ErrorCode::InvalidVaultToken1.into());
     }
     if launchpad.min_per_tx > 0 && amount < launchpad.min_per_tx {
@@ -322,8 +319,8 @@ mod coin98_starship {
         solana_program::instruction::AccountMeta::new_readonly(*vault.key, false),
         solana_program::instruction::AccountMeta::new_readonly(*vault_signer.key, false),
         solana_program::instruction::AccountMeta::new_readonly(*launchpad_signer.key, true),
-        solana_program::instruction::AccountMeta::new(*vault_token1.to_account_info().key, false),
-        solana_program::instruction::AccountMeta::new(*user_token1.to_account_info().key, false),
+        solana_program::instruction::AccountMeta::new(*vault_token1.key, false),
+        solana_program::instruction::AccountMeta::new(*user_token1.key, false),
         solana_program::instruction::AccountMeta::new_readonly(*token_program.key, false),
       ],
       data: withdraw_data,
@@ -337,8 +334,8 @@ mod coin98_starship {
       vault.clone(),
       vault_signer.clone(),
       launchpad_signer.clone(),
-      vault_token1.to_account_info().clone(),
-      user_token1.to_account_info().clone(),
+      vault_token1.clone(),
+      user_token1.clone(),
       token_program.clone(),
     ], &[&seeds]);
     if result.is_err() {
@@ -388,24 +385,12 @@ mod coin98_starship {
       return Err(ErrorCode::NotWhitelisted.into());
     }
     if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
-      return Err(ErrorCode::InvalidSaleTime.into());
-    }
-    if user_token0.owner != *user.to_account_info().key {
-      return Err(ErrorCode::InvalidUserToken0.into());
-    }
-    if user_token0.mint != launchpad.token0_mint {
-      return Err(ErrorCode::InvalidToken0.into());
-    }
-    if user_token1.owner != *user.to_account_info().key {
-      return Err(ErrorCode::InvalidUserToken1.into());
-    }
-    if user_token1.mint != launchpad.token1_mint {
-      return Err(ErrorCode::InvalidToken1.into());
+      return Err(ErrorCode::NotInSaleTime.into());
     }
     if *vault_program.key != launchpad.vault_program_id {
       return Err(ErrorCode::InvalidVaultProgramId.into());
     }
-    if *token_program.key != anchor_spl::token::ID {
+    if *token_program.key != launchpad.token_program_id {
       return Err(ErrorCode::InvalidVaultProgramId.into());
     }
     if *vault.key != launchpad.vault {
@@ -414,10 +399,10 @@ mod coin98_starship {
     if *vault_signer.key != launchpad.vault_signer {
       return Err(ErrorCode::InvalidVaultSigner.into());
     }
-    if *vault_token0.to_account_info().key != launchpad.vault_token0 {
+    if *vault_token0.key != launchpad.vault_token0 {
       return Err(ErrorCode::InvalidVaultToken0.into());
     }
-    if *vault_token1.to_account_info().key != launchpad.vault_token1 {
+    if *vault_token1.key != launchpad.vault_token1 {
       return Err(ErrorCode::InvalidVaultToken1.into());
     }
     if launchpad.min_per_tx > 0 && amount < launchpad.min_per_tx {
@@ -438,15 +423,15 @@ mod coin98_starship {
     let instruction = solana_program::instruction::Instruction {
       program_id: *token_program.key,
       accounts: vec![
-        solana_program::instruction::AccountMeta::new(*user_token0.to_account_info().key, false),
-        solana_program::instruction::AccountMeta::new(*vault_token0.to_account_info().key, false),
+        solana_program::instruction::AccountMeta::new(*user_token0.key, false),
+        solana_program::instruction::AccountMeta::new(*vault_token0.key, false),
         solana_program::instruction::AccountMeta::new_readonly(*user.key, true),
       ],
       data: transfer_data,
     };
     let result = solana_program::program::invoke(&instruction, &[
-      user_token0.to_account_info().clone(),
-      vault_token0.to_account_info().clone(),
+      user_token0.clone(),
+      vault_token0.clone(),
       user.clone(),
     ]);
     if result.is_err() {
@@ -470,8 +455,8 @@ mod coin98_starship {
         solana_program::instruction::AccountMeta::new_readonly(*vault.key, false),
         solana_program::instruction::AccountMeta::new_readonly(*vault_signer.key, false),
         solana_program::instruction::AccountMeta::new_readonly(*launchpad_signer.key, true),
-        solana_program::instruction::AccountMeta::new(*vault_token1.to_account_info().key, false),
-        solana_program::instruction::AccountMeta::new(*user_token1.to_account_info().key, false),
+        solana_program::instruction::AccountMeta::new(*vault_token1.key, false),
+        solana_program::instruction::AccountMeta::new(*user_token1.key, false),
         solana_program::instruction::AccountMeta::new_readonly(*token_program.key, false),
       ],
       data: withdraw_data,
@@ -485,8 +470,8 @@ mod coin98_starship {
       vault.clone(),
       vault_signer.clone(),
       launchpad_signer.clone(),
-      vault_token1.to_account_info().clone(),
-      user_token1.to_account_info().clone(),
+      vault_token1.clone(),
+      user_token1.clone(),
       token_program.clone(),
     ], &[&seeds]);
     if result.is_err() {
@@ -825,7 +810,7 @@ pub struct RedeemBySolContext<'info> {
   pub local_profile: Account<'info, LocalProfile>,
 
   #[account(mut)]
-  pub user_token1: Account<'info, TokenAccount>,
+  pub user_token1: AccountInfo<'info>,
 
   pub vault: AccountInfo<'info>,
 
@@ -833,7 +818,7 @@ pub struct RedeemBySolContext<'info> {
   pub vault_signer: AccountInfo<'info>,
 
   #[account(mut)]
-  pub vault_token1: Account<'info, TokenAccount>,
+  pub vault_token1: AccountInfo<'info>,
 
   pub clock: Sysvar<'info, Clock>,
 
@@ -864,20 +849,20 @@ pub struct RedeemByTokenContext<'info> {
   pub local_profile: Account<'info, LocalProfile>,
 
   #[account(mut)]
-  pub user_token0: Account<'info, TokenAccount>,
+  pub user_token0: AccountInfo<'info>,
 
   #[account(mut)]
-  pub user_token1: Account<'info, TokenAccount>,
+  pub user_token1: AccountInfo<'info>,
 
   pub vault: AccountInfo<'info>,
 
   pub vault_signer: AccountInfo<'info>,
 
   #[account(mut)]
-  pub vault_token0: Account<'info, TokenAccount>,
+  pub vault_token0: AccountInfo<'info>,
 
   #[account(mut)]
-  pub vault_token1: Account<'info, TokenAccount>,
+  pub vault_token1: AccountInfo<'info>,
 
   pub clock: Sysvar<'info, Clock>,
 
@@ -1038,6 +1023,7 @@ pub struct Launchpad {
   pub price_in_sol: u64,
   pub allow_token: bool,
   pub price_in_token: u64,
+  pub token_program_id: Pubkey,
   pub token0_mint: Pubkey,
   pub token1_mint: Pubkey,
   pub vault_program_id: Pubkey,
@@ -1115,12 +1101,6 @@ pub enum ErrorCode {
   #[msg("Coin98Starship: Invalid user.")]
   InvalidUser,
 
-  #[msg("Coin98Starship: Invalid user Token 0 Account.")]
-  InvalidUserToken0,
-
-  #[msg("Coin98Starship: Invalid user Token 1 Account.")]
-  InvalidUserToken1,
-
   #[msg("Coin98Starship: Invalid Vault Program Id.")]
   InvalidVaultProgramId,
 
@@ -1136,12 +1116,6 @@ pub enum ErrorCode {
   #[msg("Coin98Starship: Invalid Vault Token 1 Account.")]
   InvalidVaultToken1,
 
-  #[msg("Coin98Starship: Not an Token 0 account.")]
-  InvalidToken0,
-
-  #[msg("Coin98Starship: Not an Token 1 account.")]
-  InvalidToken1,
-
   #[msg("Coin98Starship: Launchpad setting is finalized.")]
   LaunchpadFinalized,
 
@@ -1155,7 +1129,7 @@ pub enum ErrorCode {
   NotInRegistrationTime,
 
   #[msg("Coin98Starship: Only allowed during sale time.")]
-  NotItSaleTime,
+  NotInSaleTime,
 
   #[msg("Coin98Starship: Not registered.")]
   NotRegistered,
