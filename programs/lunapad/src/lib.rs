@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program;
 use solana_program::instruction::{ AccountMeta };
 
-declare_id!("SS2SWSSZnSZkvSunyCFpY5FtwbP68qArQaYysV55Jkc");
+declare_id!("SS3ah9B4EpsECrNpYLdNH2YhfuqrHAYQ8xFTCweZJQT");
 
 #[program]
 mod coin98_starship {
@@ -34,88 +34,27 @@ mod coin98_starship {
     _launchpad_nonce: u8,
     signer_nonce: u8,
     owner: Pubkey,
-    allow_sol: bool,
-    price_in_sol: u64,
-    allow_token: bool,
-    price_in_token: u64,
-    token_program_id: Pubkey,
-    token0_mint: Pubkey,
-    token1_mint: Pubkey,
-    vault_program_id: Pubkey,
-    vault: Pubkey,
-    vault_signer: Pubkey,
-    vault_token0: Pubkey,
-    vault_token1: Pubkey,
-    is_private_sale: bool,
-    min_per_tx: u64,
-    max_per_user: u64,
-    register_start_timestamp: i64,
-    register_end_timestamp: i64,
-    redeem_start_timestamp: i64,
-    redeem_end_timestamp: i64,
-    is_finalized: bool,
   ) -> ProgramResult {
-    msg!("Coin98Starship: Instruction_CreateLaunchpad");
+    msg!("Coin98Starship: Instruction_SetLaunchpad");
 
     let root = &ctx.accounts.root;
     let app_data = &ctx.accounts.app_data;
-    let clock = &ctx.accounts.clock;
 
     if app_data.root != *root.to_account_info().key {
       return Err(ErrorCode::InvalidOwner.into());
-    }
-    if allow_sol && price_in_sol == 0u64 {
-      return Err(ErrorCode::InvalidSolPrice.into());
-    }
-    if allow_token && price_in_token == 0u64 {
-      return Err(ErrorCode::InvalidTokenPrice.into());
-    }
-    if register_start_timestamp > register_end_timestamp {
-      return Err(ErrorCode::InvalidRegistrationTime.into());
-    }
-    if clock.unix_timestamp > register_start_timestamp {
-      return Err(ErrorCode::FutureTimeRequired.into());
-    }
-    if redeem_start_timestamp > redeem_end_timestamp {
-      return Err(ErrorCode::InvalidSaleTime.into());
-    }
-    if redeem_start_timestamp < register_end_timestamp {
-      return Err(ErrorCode::RegistrationAndSaleTimeOverlap.into());
     }
 
     let launchpad = &mut ctx.accounts.launchpad;
 
     launchpad.nonce = signer_nonce;
     launchpad.owner = owner;
-    launchpad.allow_sol = allow_sol;
-    launchpad.price_in_sol = price_in_sol;
-    launchpad.allow_token = allow_token;
-    launchpad.price_in_token = price_in_token;
-    launchpad.token_program_id = token_program_id;
-    launchpad.token0_mint = token0_mint;
-    launchpad.token1_mint = token1_mint;
-    launchpad.vault_program_id = vault_program_id;
-    launchpad.vault = vault;
-    launchpad.vault_signer = vault_signer;
-    launchpad.vault_token0 = vault_token0;
-    launchpad.vault_token1 = vault_token1;
-    launchpad.is_private_sale = is_private_sale;
-    launchpad.min_per_tx = min_per_tx;
-    launchpad.max_per_user = max_per_user;
-    launchpad.register_start_timestamp = register_start_timestamp;
-    launchpad.register_end_timestamp = register_end_timestamp;
-    launchpad.redeem_start_timestamp = redeem_start_timestamp;
-    launchpad.redeem_end_timestamp = redeem_end_timestamp;
-    launchpad.is_finalized = is_finalized;
 
     Ok(())
   }
 
-  pub fn update_launchpad(
-    ctx: Context<UpdateLaunchpadContext>,
-    allow_sol: bool,
+  pub fn set_launchpad(
+    ctx: Context<SetLaunchpadContext>,
     price_in_sol: u64,
-    allow_token: bool,
     price_in_token: u64,
     token_program_id: Pubkey,
     token0_mint: Pubkey,
@@ -126,37 +65,28 @@ mod coin98_starship {
     vault_token0: Pubkey,
     vault_token1: Pubkey,
     is_private_sale: bool,
+    private_sale_signature: [u8; 32],
     min_per_tx: u64,
     max_per_user: u64,
     register_start_timestamp: i64,
     register_end_timestamp: i64,
     redeem_start_timestamp: i64,
     redeem_end_timestamp: i64,
-    is_finalized: bool,
   ) -> ProgramResult {
-    msg!("Coin98Starship: Instruction_UpdateLaunchpad");
+    msg!("Coin98Starship: Instruction_SetLaunchpad");
 
     let owner = &ctx.accounts.owner;
-    let launchpad = &ctx.accounts.launchpad;
     let clock = &ctx.accounts.clock;
+    let launchpad = &ctx.accounts.launchpad;
 
-    if launchpad.owner != *owner.key {
+    if *owner.key != launchpad.owner {
       return Err(ErrorCode::InvalidOwner.into());
-    }
-    if launchpad.is_finalized || clock.unix_timestamp > launchpad.register_start_timestamp {
-      return Err(ErrorCode::LaunchpadFinalized.into());
-    }
-    if allow_sol && price_in_sol == 0u64 {
-      return Err(ErrorCode::InvalidSolPrice.into());
-    }
-    if allow_token && price_in_token == 0u64 {
-      return Err(ErrorCode::InvalidTokenPrice.into());
-    }
-    if clock.unix_timestamp > register_start_timestamp {
-      return Err(ErrorCode::FutureTimeRequired.into());
     }
     if register_start_timestamp > register_end_timestamp {
       return Err(ErrorCode::InvalidRegistrationTime.into());
+    }
+    if clock.unix_timestamp > register_start_timestamp {
+      return Err(ErrorCode::FutureTimeRequired.into());
     }
     if redeem_start_timestamp > redeem_end_timestamp {
       return Err(ErrorCode::InvalidSaleTime.into());
@@ -167,9 +97,7 @@ mod coin98_starship {
 
     let launchpad = &mut ctx.accounts.launchpad;
 
-    launchpad.allow_sol = allow_sol;
     launchpad.price_in_sol = price_in_sol;
-    launchpad.allow_token = allow_token;
     launchpad.price_in_token = price_in_token;
     launchpad.token_program_id = token_program_id;
     launchpad.token0_mint = token0_mint;
@@ -180,13 +108,13 @@ mod coin98_starship {
     launchpad.vault_token0 = vault_token0;
     launchpad.vault_token1 = vault_token1;
     launchpad.is_private_sale = is_private_sale;
+    launchpad.private_sale_signature = private_sale_signature;
     launchpad.min_per_tx = min_per_tx;
     launchpad.max_per_user = max_per_user;
     launchpad.register_start_timestamp = register_start_timestamp;
     launchpad.register_end_timestamp = register_end_timestamp;
     launchpad.redeem_start_timestamp = redeem_start_timestamp;
     launchpad.redeem_end_timestamp = redeem_end_timestamp;
-    launchpad.is_finalized = is_finalized;
 
     Ok(())
   }
@@ -258,7 +186,7 @@ mod coin98_starship {
     if local_profile.launchpad != *launchpad.to_account_info().key {
       return Err(ErrorCode::InvalidLanchpad.into());
     }
-    if !launchpad.allow_sol {
+    if launchpad.price_in_sol == 0u64 {
       return Err(ErrorCode::RedeemBySolNotAllowed.into());
     }
     if launchpad.is_private_sale && !local_profile.is_whitelisted {
@@ -378,7 +306,7 @@ mod coin98_starship {
     if local_profile.launchpad != *launchpad.to_account_info().key {
       return Err(ErrorCode::InvalidLanchpad.into());
     }
-    if !launchpad.allow_token {
+    if launchpad.price_in_token == 0u64 {
       return Err(ErrorCode::RedeemByTokenNotAllowed.into());
     }
     if launchpad.is_private_sale && !local_profile.is_whitelisted {
@@ -757,13 +685,11 @@ pub struct CreateLaunchpadContext<'info> {
 
   pub rent: Sysvar<'info, Rent>,
 
-  pub clock: Sysvar<'info, Clock>,
-
   pub system_program: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
-pub struct UpdateLaunchpadContext<'info> {
+pub struct SetLaunchpadContext<'info> {
 
   #[account(signer)]
   pub owner: AccountInfo<'info>,
@@ -1019,9 +945,7 @@ pub struct Launchpad {
   pub nonce: u8,
   pub owner: Pubkey,
   pub new_owner: Pubkey,
-  pub allow_sol: bool,
   pub price_in_sol: u64,
-  pub allow_token: bool,
   pub price_in_token: u64,
   pub token_program_id: Pubkey,
   pub token0_mint: Pubkey,
@@ -1032,6 +956,7 @@ pub struct Launchpad {
   pub vault_token0: Pubkey,
   pub vault_token1: Pubkey,
   pub is_private_sale: bool,
+  pub private_sale_signature: [u8; 32],
   pub min_per_tx: u64,
   pub max_per_user: u64,
   pub register_start_timestamp: i64,
@@ -1066,6 +991,14 @@ pub struct LocalProfile {
 #[derive(AnchorSerialize, AnchorDeserialize, Default)]
 pub struct TransferTokenParams {
   pub amount: u64,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Default)]
+pub struct ScheduleParams {
+  pub index: u32,
+  pub address: Pubkey,
+  pub receiving_amount: u64,
+  pub sending_amount: u64,
 }
 
 #[error]
