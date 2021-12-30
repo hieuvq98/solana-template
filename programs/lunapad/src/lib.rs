@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program;
-use solana_program::instruction::{ AccountMeta };
+use anchor_lang::solana_program::keccak::{ hash, hashv };
 
 declare_id!("SS3ah9B4EpsECrNpYLdNH2YhfuqrHAYQ8xFTCweZJQT");
 
@@ -35,7 +35,7 @@ mod coin98_starship {
     signer_nonce: u8,
     owner: Pubkey,
   ) -> ProgramResult {
-    msg!("Coin98Starship: Instruction_SetLaunchpad");
+    msg!("Coin98Starship: Instruction_CreateLaunchpad");
 
     let root = &ctx.accounts.root;
     let app_data = &ctx.accounts.app_data;
@@ -75,11 +75,12 @@ mod coin98_starship {
   ) -> ProgramResult {
     msg!("Coin98Starship: Instruction_SetLaunchpad");
 
-    let owner = &ctx.accounts.owner;
+    let root = &ctx.accounts.root;
+    let app_data = &ctx.accounts.app_data;
     let clock = &ctx.accounts.clock;
     let launchpad = &ctx.accounts.launchpad;
 
-    if *owner.key != launchpad.owner {
+    if app_data.root != *root.to_account_info().key {
       return Err(ErrorCode::InvalidOwner.into());
     }
     if register_start_timestamp > register_end_timestamp {
@@ -121,6 +122,8 @@ mod coin98_starship {
 
   pub fn register(
     ctx: Context<RegisterContext>,
+    index: u32,
+    proofs: Vec<[u8; 32]>,
   ) -> ProgramResult {
     msg!("Coin98Starship: Instruction_Register");
 
@@ -142,11 +145,19 @@ mod coin98_starship {
     if local_profile.launchpad != *launchpad.to_account_info().key {
       return Err(ErrorCode::InvalidLanchpad.into());
     }
-    if launchpad.is_private_sale && !local_profile.is_whitelisted {
-      return Err(ErrorCode::NotWhitelisted.into());
-    }
     if clock.unix_timestamp < launchpad.register_start_timestamp || clock.unix_timestamp > launchpad.register_end_timestamp {
       return Err(ErrorCode::InvalidRegistrationTime.into());
+    }
+    if launchpad.is_private_sale {
+      let whitelist = WhitelistParams {
+        index: index,
+        address: *user.key
+      };
+      let whitelist_data = whitelist.try_to_vec().unwrap();
+      let leaf = hash(&whitelist_data[..]);
+      if !verify(proofs, launchpad.private_sale_signature, leaf.to_bytes()) {
+        return Err(ErrorCode::NotWhitelisted.into());
+      }
     }
 
     let local_profile = &mut ctx.accounts.local_profile;
@@ -188,9 +199,6 @@ mod coin98_starship {
     }
     if launchpad.price_in_sol == 0u64 {
       return Err(ErrorCode::RedeemBySolNotAllowed.into());
-    }
-    if launchpad.is_private_sale && !local_profile.is_whitelisted {
-      return Err(ErrorCode::NotWhitelisted.into());
     }
     if !local_profile.is_registered {
       return Err(ErrorCode::NotRegistered.into());
@@ -309,9 +317,6 @@ mod coin98_starship {
     if launchpad.price_in_token == 0u64 {
       return Err(ErrorCode::RedeemByTokenNotAllowed.into());
     }
-    if launchpad.is_private_sale && !local_profile.is_whitelisted {
-      return Err(ErrorCode::NotWhitelisted.into());
-    }
     if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
       return Err(ErrorCode::NotInSaleTime.into());
     }
@@ -404,112 +409,6 @@ mod coin98_starship {
     ], &[&seeds]);
     if result.is_err() {
       return Err(ErrorCode::TransactionFailed.into());
-    }
-
-    Ok(())
-  }
-
-  pub fn set_whitelist_internal(
-    ctx: Context<SetWhitelistInternalContext>,
-    is_whitelisted: bool,
-  ) -> ProgramResult {
-    msg!("Coin98Starship: Instruction_SetWhitelistInternal");
-
-    let launchpad = &ctx.accounts.launchpad;
-    let launchpad_signer = &ctx.accounts.launchpad_signer;
-    let user = &ctx.accounts.user;
-    let profile = &ctx.accounts.local_profile;
-
-    let signer_address = Pubkey::create_program_address(
-      &[
-        &[2, 151, 229, 53, 244,  77, 229,  7],
-        launchpad.to_account_info().key.as_ref(),
-        &[launchpad.nonce]
-      ],
-      &ctx.program_id,
-    ).unwrap();
-
-    if signer_address != *launchpad_signer.key {
-      return Err(ErrorCode::InvalidOwner.into());
-    }
-
-    if profile.user != *user.key {
-      return Err(ErrorCode::InvalidUser.into());
-    }
-
-    let profile = &mut ctx.accounts.local_profile;
-
-    profile.is_whitelisted = is_whitelisted;
-
-    Ok(())
-  }
-
-  pub fn set_whitelists(
-    ctx: Context<SetWhitelistsContext>,
-    is_whitelisted: bool,
-  ) -> ProgramResult {
-    msg!("Coin98Starship: Instruction_SetWhitelists");
-
-    let owner = &ctx.accounts.owner;
-    let launchpad = &ctx.accounts.launchpad;
-    let clock = &ctx.accounts.clock;
-
-    if launchpad.owner != *owner.key {
-      return Err(ErrorCode::InvalidOwner.into());
-    }
-    if clock.unix_timestamp > launchpad.redeem_start_timestamp {
-      return Err(ErrorCode::InvalidRegistrationTime.into());
-    }
-
-    let signer_address = Pubkey::create_program_address(
-      &[
-        &[2, 151, 229, 53, 244,  77, 229,  7],
-        launchpad.to_account_info().key.as_ref(),
-        &[launchpad.nonce]
-      ],
-      &ctx.program_id,
-    ).unwrap();
-    let signer_seeds: &[&[_]] = &[
-      &[2, 151, 229, 53, 244,  77, 229,  7],
-      launchpad.to_account_info().key.as_ref(),
-      &[launchpad.nonce],
-    ];
-
-    let mut set_whitelist_data: Vec<u8> = Vec::new();
-    set_whitelist_data.extend_from_slice(&[237, 84, 123, 225, 100, 205, 44, 246]);
-    if is_whitelisted {
-      set_whitelist_data.extend_from_slice(&[1]);
-    }
-    else {
-      set_whitelist_data.extend_from_slice(&[0]);
-    }
-
-    let accounts = &ctx.remaining_accounts;
-
-    let mut i = 4;
-    while i < accounts.len() {
-      let instruction = solana_program::instruction::Instruction {
-        program_id: *ctx.program_id,
-        accounts: vec![
-          AccountMeta::new_readonly(*launchpad.to_account_info().key, false),
-          AccountMeta::new_readonly(signer_address, true),
-          AccountMeta::new_readonly(*accounts[i].to_account_info().key, false),
-          AccountMeta::new(*accounts[i+1].to_account_info().key, false),
-          AccountMeta::new_readonly(*clock.to_account_info().key, false),
-        ],
-        data: set_whitelist_data.to_vec(),
-      };
-      let result = solana_program::program::invoke_signed(&instruction, &[
-        accounts[0].clone(),
-        accounts[1].clone(),
-        accounts[i].clone(),
-        accounts[i+1].clone(),
-        accounts[2].clone(),
-      ], &[&signer_seeds]);
-      if result.is_err() {
-        return Err(ErrorCode::TransactionFailed.into());
-      }
-      i = i + 2;
     }
 
     Ok(())
@@ -692,7 +591,9 @@ pub struct CreateLaunchpadContext<'info> {
 pub struct SetLaunchpadContext<'info> {
 
   #[account(signer)]
-  pub owner: AccountInfo<'info>,
+  pub root: AccountInfo<'info>,
+
+  pub app_data: Account<'info, AppData>,
 
   #[account(mut)]
   pub launchpad: Account<'info, Launchpad>,
@@ -983,7 +884,6 @@ pub struct GlobalProfile {
 pub struct LocalProfile {
   pub launchpad: Pubkey,
   pub user: Pubkey,
-  pub is_whitelisted: bool,
   pub is_registered: bool,
   pub redeemed_token: u64,
 }
@@ -994,11 +894,9 @@ pub struct TransferTokenParams {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Default)]
-pub struct ScheduleParams {
+pub struct WhitelistParams {
   pub index: u32,
   pub address: Pubkey,
-  pub receiving_amount: u64,
-  pub sending_amount: u64,
 }
 
 #[error]
@@ -1084,4 +982,23 @@ pub enum ErrorCode {
 
   #[msg("Coin98Starship: Transaction failed.")]
   TransactionFailed,
+}
+
+/// Returns true if a `leaf` can be proved to be a part of a Merkle tree
+/// defined by `root`. For this, a `proof` must be provided, containing
+/// sibling hashes on the branch from the leaf to the root of the tree. Each
+/// pair of leaves and each pair of pre-images are assumed to be sorted.
+pub fn verify(proofs: Vec<[u8; 32]>, root: [u8; 32], leaf: [u8; 32]) -> bool {
+  let mut computed_hash = leaf;
+  for proof in proofs.into_iter() {
+    if computed_hash < proof {
+      // Hash(current computed hash + current element of the proof)
+      computed_hash = hashv(&[&computed_hash, &proof]).to_bytes();
+    } else {
+      // Hash(current element of the proof + current computed hash)
+      computed_hash = hashv(&[&proof, &computed_hash]).to_bytes();
+    }
+  }
+  // Check if the computed hash (root) is equal to the provided root
+  computed_hash == root
 }
