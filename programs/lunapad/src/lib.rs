@@ -1,53 +1,32 @@
+pub mod constants;
+
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program;
 use anchor_lang::solana_program::keccak::{ hash, hashv };
 
-declare_id!("SS3ah9B4EpsECrNpYLdNH2YhfuqrHAYQ8xFTCweZJQT");
+declare_id!("SS4VMP9wmqQdehu7Uc6g1Ymsx4BCVVghKp4wRmmy1jj");
 
 #[program]
 mod coin98_starship {
   use super::*;
-
-  pub fn init(
-    ctx: Context<InitContext>,
-  ) -> ProgramResult {
-    msg!("Coin98Starship: Instruction_Init");
-
-    let root = &ctx.accounts.root;
-    let app_data = &ctx.accounts.app_data;
-
-    if app_data.is_initialized {
-      return Err(ErrorCode::StarshipInitialized.into());
-    }
-
-    let app_data = &mut ctx.accounts.app_data;
-
-    app_data.root = *root.to_account_info().key;
-    app_data.is_initialized = true;
-
-    Ok(())
-  }
 
   pub fn create_launchpad(
     ctx: Context<CreateLaunchpadContext>,
     _launchpad_path: Vec<u8>,
     _launchpad_nonce: u8,
     signer_nonce: u8,
-    owner: Pubkey,
   ) -> ProgramResult {
     msg!("Coin98Starship: Instruction_CreateLaunchpad");
 
     let root = &ctx.accounts.root;
-    let app_data = &ctx.accounts.app_data;
 
-    if app_data.root != *root.to_account_info().key {
+    if !verify_owner(root.key) {
       return Err(ErrorCode::InvalidOwner.into());
     }
 
     let launchpad = &mut ctx.accounts.launchpad;
 
     launchpad.nonce = signer_nonce;
-    launchpad.owner = owner;
 
     Ok(())
   }
@@ -76,11 +55,9 @@ mod coin98_starship {
     msg!("Coin98Starship: Instruction_SetLaunchpad");
 
     let root = &ctx.accounts.root;
-    let app_data = &ctx.accounts.app_data;
     let clock = &ctx.accounts.clock;
-    let launchpad = &ctx.accounts.launchpad;
 
-    if app_data.root != *root.to_account_info().key {
+    if !verify_owner(root.key) {
       return Err(ErrorCode::InvalidOwner.into());
     }
     if register_start_timestamp > register_end_timestamp {
@@ -155,7 +132,7 @@ mod coin98_starship {
       };
       let whitelist_data = whitelist.try_to_vec().unwrap();
       let leaf = hash(&whitelist_data[..]);
-      if !verify(proofs, launchpad.private_sale_signature, leaf.to_bytes()) {
+      if !verify_proof(proofs, launchpad.private_sale_signature, leaf.to_bytes()) {
         return Err(ErrorCode::NotWhitelisted.into());
       }
     }
@@ -416,110 +393,25 @@ mod coin98_starship {
 
   pub fn set_blacklist(
     ctx: Context<SetBlacklistContext>,
+    user: Pubkey,
     is_blacklisted: bool,
   ) -> ProgramResult {
     msg!("Coin98Starship: Instruction_SetBlacklist");
 
     let root = &ctx.accounts.root;
-    let app_data = &ctx.accounts.app_data;
-    let user = &ctx.accounts.user;
     let profile = &ctx.accounts.global_profile;
 
-    if app_data.root != *root.to_account_info().key {
+    if !verify_owner(root.key) {
       return Err(ErrorCode::InvalidOwner.into());
     }
-    if profile.user != *user.key {
+    // TODO: Check GlobalProfile address
+    if profile.user != user {
       return Err(ErrorCode::InvalidUser.into());
     }
 
     let profile = &mut ctx.accounts.global_profile;
 
     profile.is_blacklisted = is_blacklisted;
-
-    Ok(())
-  }
-
-  pub fn transfer_root(ctx: Context<TransferRootContext>,
-    new_root: Pubkey,
-  ) -> ProgramResult {
-    msg!("Coin98Starship: Instruction_TransferRoot");
-
-    let root = &ctx.accounts.root;
-    let app_data = &ctx.accounts.app_data;
-
-    if app_data.root != *root.key {
-      return Err(ErrorCode::InvalidOwner.into());
-    }
-
-    let app_data = &mut ctx.accounts.app_data;
-
-    app_data.new_root = new_root;
-
-    Ok(())
-  }
-
-  pub fn accept_root(ctx: Context<AcceptRootContext>,
-  ) -> ProgramResult {
-    msg!("Coin98Starship: Instruction_AcceptRoot");
-
-    let new_root = &ctx.accounts.new_root;
-    let app_data = &ctx.accounts.app_data;
-
-    if app_data.new_root != *new_root.key {
-      return Err(ErrorCode::InvalidNewOwner.into());
-    }
-
-    let app_data = &mut ctx.accounts.app_data;
-
-    app_data.root = app_data.new_root;
-    app_data.new_root = solana_program::system_program::ID;
-
-    Ok(())
-  }
-
-  pub fn transfer_ownership(ctx: Context<TransferOwnershipContext>,
-    new_owner: Pubkey,
-  ) -> ProgramResult {
-    msg!("Coin98Starship: Instruction_TransferOwnership");
-
-    let owner = &ctx.accounts.owner;
-    let launchpad = &ctx.accounts.launchpad;
-
-    if launchpad.owner != *owner.key {
-      return Err(ErrorCode::InvalidOwner.into());
-    }
-
-    let launchpad = &mut ctx.accounts.launchpad;
-
-    launchpad.new_owner = new_owner;
-
-    Ok(())
-  }
-
-  pub fn accept_ownership(ctx: Context<AcceptOwnershipContext>,
-  ) -> ProgramResult {
-    msg!("Coin98Starship: Instruction_AcceptOwnership");
-
-    let new_owner = &ctx.accounts.new_owner;
-    let launchpad = &ctx.accounts.launchpad;
-
-    if launchpad.new_owner != *new_owner.key {
-      return Err(ErrorCode::InvalidNewOwner.into());
-    }
-
-    let launchpad = &mut ctx.accounts.launchpad;
-
-    launchpad.owner = launchpad.new_owner;
-    launchpad.new_owner = solana_program::system_program::ID;
-
-    Ok(())
-  }
-
-  pub fn create_app_data(
-    _ctx: Context<CreateAppDataContext>,
-    _nonce: u8,
-  ) -> ProgramResult {
-    msg!("Coin98Starship: Instruction_CreateAppData");
 
     Ok(())
   }
@@ -558,23 +450,11 @@ mod coin98_starship {
 }
 
 #[derive(Accounts)]
-pub struct InitContext<'info> {
-
-  #[account(signer)]
-  pub root: AccountInfo<'info>,
-
-  #[account(mut)]
-  pub app_data: Account<'info, AppData>,
-}
-
-#[derive(Accounts)]
 #[instruction(launchpad_path: Vec<u8>, launchpad_nonce: u8, _signer_nonce: u8)]
 pub struct CreateLaunchpadContext<'info> {
 
   #[account(signer)]
   pub root: AccountInfo<'info>,
-
-  pub app_data: Account<'info, AppData>,
 
   #[account(init, seeds = [
     &[8, 201, 24, 140, 93, 100, 30, 148],
@@ -592,8 +472,6 @@ pub struct SetLaunchpadContext<'info> {
 
   #[account(signer)]
   pub root: AccountInfo<'info>,
-
-  pub app_data: Account<'info, AppData>,
 
   #[account(mut)]
   pub launchpad: Account<'info, Launchpad>,
@@ -699,102 +577,13 @@ pub struct RedeemByTokenContext<'info> {
 }
 
 #[derive(Accounts)]
-pub struct SetWhitelistInternalContext<'info> {
-
-  pub launchpad: Account<'info, Launchpad>,
-
-  #[account(signer)]
-  pub launchpad_signer: AccountInfo<'info>,
-
-  pub user: AccountInfo<'info>,
-
-  #[account(mut)]
-  pub local_profile: Account<'info, LocalProfile>,
-
-  pub clock: Sysvar<'info, Clock>,
-}
-
-#[derive(Accounts)]
-pub struct SetWhitelistsContext<'info> {
-
-  #[account(signer)]
-  pub owner: AccountInfo<'info>,
-
-  pub launchpad: Account<'info, Launchpad>,
-
-  pub clock: Sysvar<'info, Clock>,
-}
-
-#[derive(Accounts)]
 pub struct SetBlacklistContext<'info> {
 
   #[account(signer)]
   pub root: AccountInfo<'info>,
 
-  pub app_data: Account<'info, AppData>,
-
-  pub user: AccountInfo<'info>,
-
   #[account(mut)]
   pub global_profile: Account<'info, GlobalProfile>,
-}
-
-#[derive(Accounts)]
-pub struct TransferRootContext<'info> {
-
-  #[account(signer)]
-  pub root: AccountInfo<'info>,
-
-  #[account(mut)]
-  pub app_data: Account<'info, AppData>,
-}
-
-#[derive(Accounts)]
-pub struct AcceptRootContext<'info> {
-
-  #[account(signer)]
-  pub new_root: AccountInfo<'info>,
-
-  #[account(mut)]
-  pub app_data: Account<'info, AppData>,
-}
-
-#[derive(Accounts)]
-pub struct TransferOwnershipContext<'info> {
-
-  #[account(signer)]
-  pub owner: AccountInfo<'info>,
-
-  #[account(mut)]
-  pub launchpad: Account<'info, Launchpad>,
-}
-
-#[derive(Accounts)]
-pub struct AcceptOwnershipContext<'info> {
-
-  #[account(signer)]
-  pub new_owner: AccountInfo<'info>,
-
-  #[account(mut)]
-  pub launchpad: Account<'info, Launchpad>,
-}
-
-#[derive(Accounts)]
-#[instruction(app_data_nonce: u8)]
-pub struct CreateAppDataContext<'info> {
-
-  #[account(signer)]
-  pub payer: AccountInfo<'info>,
-
-  #[account(init, seeds = [
-    &[15, 81, 173, 106, 105, 203, 253, 99],
-    Pubkey::new(&[32, 40, 118, 173, 164, 46, 192, 86, 236, 196, 165, 90, 92, 121, 96, 70, 199, 93, 172, 52, 204, 122, 54, 130, 84, 73, 55, 238, 129, 185, 214, 226]).as_ref(),
-  ], bump = app_data_nonce, payer = payer, space = 81)]
-  pub global_profile: Account<'info, AppData>,
-
-  pub rent: Sysvar<'info, Rent>,
-
-  pub system_program: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -844,8 +633,6 @@ pub struct CreateLocalProfileContext<'info> {
 #[account]
 pub struct Launchpad {
   pub nonce: u8,
-  pub owner: Pubkey,
-  pub new_owner: Pubkey,
   pub price_in_sol: u64,
   pub price_in_token: u64,
   pub token_program_id: Pubkey,
@@ -865,13 +652,6 @@ pub struct Launchpad {
   pub redeem_start_timestamp: i64,
   pub redeem_end_timestamp: i64,
   pub is_finalized: bool,
-}
-
-#[account]
-pub struct AppData {
-  pub root: Pubkey,
-  pub new_root: Pubkey,
-  pub is_initialized: bool,
 }
 
 #[account]
@@ -984,11 +764,17 @@ pub enum ErrorCode {
   TransactionFailed,
 }
 
+pub fn verify_owner(owner: &Pubkey) -> bool {
+  let owner_key = owner.to_string();
+  let result = constants::ROOT_KEYS.iter().position(|&key| key == &owner_key[..]);
+  result != None
+}
+
 /// Returns true if a `leaf` can be proved to be a part of a Merkle tree
 /// defined by `root`. For this, a `proof` must be provided, containing
 /// sibling hashes on the branch from the leaf to the root of the tree. Each
 /// pair of leaves and each pair of pre-images are assumed to be sorted.
-pub fn verify(proofs: Vec<[u8; 32]>, root: [u8; 32], leaf: [u8; 32]) -> bool {
+pub fn verify_proof(proofs: Vec<[u8; 32]>, root: [u8; 32], leaf: [u8; 32]) -> bool {
   let mut computed_hash = leaf;
   for proof in proofs.into_iter() {
     if computed_hash < proof {
