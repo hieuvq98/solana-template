@@ -97,6 +97,25 @@ mod coin98_starship {
     Ok(())
   }
 
+  pub fn set_launchpad_status(
+    ctx: Context<SetLaunchpadStatusContext>,
+    is_active: bool,
+  ) -> ProgramResult {
+    msg!("Coin98Starship: Instruction_SetLaunchpadStatus");
+
+    let root = &ctx.accounts.root;
+
+    if !verify_owner(root.key) {
+      return Err(ErrorCode::InvalidOwner.into());
+    }
+
+    let launchpad = &mut ctx.accounts.launchpad;
+
+    launchpad.is_active = is_active;
+
+    Ok(())
+  }
+
   pub fn register(
     ctx: Context<RegisterContext>,
     index: u32,
@@ -419,14 +438,13 @@ mod coin98_starship {
   pub fn create_global_profile(
     ctx: Context<CreateGlobalProfileContext>,
     _nonce: u8,
+    user: Pubkey,
   ) -> ProgramResult {
     msg!("Coin98Starship: Instruction_CreateGlobalProfile");
 
-    let user = &ctx.accounts.user;
-
     let profile = &mut ctx.accounts.global_profile;
 
-    profile.user = *user.key;
+    profile.user = user;
 
     Ok(())
   }
@@ -434,16 +452,16 @@ mod coin98_starship {
   pub fn create_local_profile(
     ctx: Context<CreateLocalProfileContext>,
     _nonce: u8,
+    user: Pubkey,
   ) -> ProgramResult {
     msg!("Coin98Starship: Instruction_CreateLocalProfile");
 
     let launchpad = &ctx.accounts.launchpad;
-    let user = &ctx.accounts.user;
 
     let profile = &mut ctx.accounts.local_profile;
 
     profile.launchpad = *launchpad.key;
-    profile.user = *user.key;
+    profile.user = user;
 
     Ok(())
   }
@@ -477,6 +495,16 @@ pub struct SetLaunchpadContext<'info> {
   pub launchpad: Account<'info, Launchpad>,
 
   pub clock: Sysvar<'info, Clock>,
+}
+
+#[derive(Accounts)]
+pub struct SetLaunchpadStatusContext<'info> {
+
+  #[account(signer)]
+  pub root: AccountInfo<'info>,
+
+  #[account(mut)]
+  pub launchpad: Account<'info, Launchpad>,
 }
 
 #[derive(Accounts)]
@@ -587,18 +615,16 @@ pub struct SetBlacklistContext<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(profile_nonce: u8)]
+#[instruction(profile_nonce: u8, user: Pubkey)]
 pub struct CreateGlobalProfileContext<'info> {
 
   #[account(signer)]
   pub payer: AccountInfo<'info>,
 
-  pub user: AccountInfo<'info>,
-
   #[account(init, seeds = [
     &[139, 126, 195, 157, 204, 134, 142, 146],
     &[32, 40, 118, 173, 164, 46, 192, 86],
-    user.key.as_ref(),
+    user.as_ref(),
   ], bump = profile_nonce, payer = payer, space = 49)]
   pub global_profile: Account<'info, GlobalProfile>,
 
@@ -608,7 +634,7 @@ pub struct CreateGlobalProfileContext<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(profile_nonce: u8)]
+#[instruction(profile_nonce: u8, user: Pubkey)]
 pub struct CreateLocalProfileContext<'info> {
 
   #[account(signer)]
@@ -616,12 +642,10 @@ pub struct CreateLocalProfileContext<'info> {
 
   pub launchpad: AccountInfo<'info>,
 
-  pub user: AccountInfo<'info>,
-
   #[account(init, seeds = [
     &[133, 177, 201, 78, 13, 152, 198, 180],
     launchpad.key.as_ref(),
-    user.key.as_ref(),
+    user.as_ref(),
   ], bump = profile_nonce, payer = payer, space = 90)]
   pub local_profile: Account<'info, LocalProfile>,
 
@@ -651,7 +675,7 @@ pub struct Launchpad {
   pub register_end_timestamp: i64,
   pub redeem_start_timestamp: i64,
   pub redeem_end_timestamp: i64,
-  pub is_finalized: bool,
+  pub is_active: bool,
 }
 
 #[account]
