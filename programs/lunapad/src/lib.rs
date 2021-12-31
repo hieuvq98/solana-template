@@ -468,7 +468,7 @@ mod coin98_starship {
 }
 
 #[derive(Accounts)]
-#[instruction(launchpad_path: Vec<u8>, launchpad_nonce: u8, _signer_nonce: u8)]
+#[instruction(launchpad_path: Vec<u8>, launchpad_nonce: u8)]
 pub struct CreateLaunchpadContext<'info> {
 
   #[account(signer)]
@@ -477,7 +477,7 @@ pub struct CreateLaunchpadContext<'info> {
   #[account(init, seeds = [
     &[8, 201, 24, 140, 93, 100, 30, 148],
     &*launchpad_path,
-  ], bump = launchpad_nonce, payer = root, space = 404)]
+  ], bump = launchpad_nonce, payer = root, space = 375)]
   pub launchpad: Account<'info, Launchpad>,
 
   pub rent: Sysvar<'info, Rent>,
