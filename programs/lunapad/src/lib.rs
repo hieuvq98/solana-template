@@ -3,6 +3,7 @@ pub mod constants;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program;
 use anchor_lang::solana_program::keccak::{ hash, hashv };
+use std::convert::TryInto;
 
 declare_id!("SS4VMP9wmqQdehu7Uc6g1Ymsx4BCVVghKp4wRmmy1jj");
 
@@ -86,7 +87,7 @@ mod coin98_starship {
     launchpad.vault_token0 = vault_token0;
     launchpad.vault_token1 = vault_token1;
     launchpad.is_private_sale = is_private_sale;
-    launchpad.private_sale_signature = private_sale_signature;
+    launchpad.private_sale_signature = private_sale_signature.try_to_vec().unwrap();
     launchpad.min_per_tx = min_per_tx;
     launchpad.max_per_user = max_per_user;
     launchpad.register_start_timestamp = register_start_timestamp;
@@ -151,7 +152,8 @@ mod coin98_starship {
       };
       let whitelist_data = whitelist.try_to_vec().unwrap();
       let leaf = hash(&whitelist_data[..]);
-      if !verify_proof(proofs, launchpad.private_sale_signature, leaf.to_bytes()) {
+      let root: [u8; 32] = launchpad.private_sale_signature.clone().try_into().unwrap();
+      if !verify_proof(proofs, root, leaf.to_bytes()) {
         return Err(ErrorCode::NotWhitelisted.into());
       }
     }
@@ -668,7 +670,7 @@ pub struct Launchpad {
   pub vault_token0: Pubkey,
   pub vault_token1: Pubkey,
   pub is_private_sale: bool,
-  pub private_sale_signature: [u8; 32],
+  pub private_sale_signature: Vec<u8>,
   pub min_per_tx: u64,
   pub max_per_user: u64,
   pub register_start_timestamp: i64,
@@ -718,20 +720,11 @@ pub enum ErrorCode {
   #[msg("Coin98Starship: Not an owner.")]
   InvalidOwner,
 
-  #[msg("Coin98Starship: Not new owner.")]
-  InvalidNewOwner,
-
   #[msg("Coin98Starship: Invalid registration time range.")]
   InvalidRegistrationTime,
 
   #[msg("Coin98Starship: Invalid sale time range.")]
   InvalidSaleTime,
-
-  #[msg("Coin98Starship: Invalid SOL price.")]
-  InvalidSolPrice,
-
-  #[msg("Coin98Starship: Invalid token price.")]
-  InvalidTokenPrice,
 
   #[msg("Coin98Starship: Invalid user.")]
   InvalidUser,
@@ -751,17 +744,11 @@ pub enum ErrorCode {
   #[msg("Coin98Starship: Invalid Vault Token 1 Account.")]
   InvalidVaultToken1,
 
-  #[msg("Coin98Starship: Launchpad setting is finalized.")]
-  LaunchpadFinalized,
-
   #[msg("Coin98Starship: Min amount reached")]
   MaxAmountReached,
 
   #[msg("Coin98Starship: Min amount not satisfied.")]
   MinAmountNotSatisfied,
-
-  #[msg("Coin98Starship: Only allowed during registration time.")]
-  NotInRegistrationTime,
 
   #[msg("Coin98Starship: Only allowed during sale time.")]
   NotInSaleTime,
@@ -780,9 +767,6 @@ pub enum ErrorCode {
 
   #[msg("Coin98Starship: Redeem by token not allowed.")]
   RedeemByTokenNotAllowed,
-
-  #[msg("Coin98Starship: Starship is already initialized.")]
-  StarshipInitialized,
 
   #[msg("Coin98Starship: Transaction failed.")]
   TransactionFailed,
