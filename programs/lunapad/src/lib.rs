@@ -143,7 +143,7 @@ mod coin98_starship {
       return Err(ErrorCode::InvalidLanchpad.into());
     }
     if clock.unix_timestamp < launchpad.register_start_timestamp || clock.unix_timestamp > launchpad.register_end_timestamp {
-      return Err(ErrorCode::InvalidRegistrationTime.into());
+      return Err(ErrorCode::NotInRegistrationTime.into());
     }
     if launchpad.is_private_sale {
       let whitelist = WhitelistParams {
@@ -244,15 +244,15 @@ mod coin98_starship {
       amount: amount,
     };
     let mut withdraw_data: Vec<u8> = Vec::new();
-    withdraw_data.extend_from_slice(&[136, 235, 181, 5, 101, 109, 57, 81]);
+    withdraw_data.extend_from_slice(&[27, 191, 15, 150, 68, 201, 127, 133]);
     withdraw_data.extend_from_slice(&withdraw_params.try_to_vec().unwrap());
 
     let instruction = solana_program::instruction::Instruction {
       program_id: *vault_program.key,
       accounts: vec![
+        solana_program::instruction::AccountMeta::new_readonly(*launchpad_signer.key, true),
         solana_program::instruction::AccountMeta::new_readonly(*vault.key, false),
         solana_program::instruction::AccountMeta::new_readonly(*vault_signer.key, false),
-        solana_program::instruction::AccountMeta::new_readonly(*launchpad_signer.key, true),
         solana_program::instruction::AccountMeta::new(*vault_token1.key, false),
         solana_program::instruction::AccountMeta::new(*user_token1.key, false),
         solana_program::instruction::AccountMeta::new_readonly(*token_program.key, false),
@@ -265,9 +265,9 @@ mod coin98_starship {
       &[launchpad.nonce],
     ];
     let result = solana_program::program::invoke_signed(&instruction, &[
+      launchpad_signer.clone(),
       vault.clone(),
       vault_signer.clone(),
-      launchpad_signer.clone(),
       vault_token1.clone(),
       user_token1.clone(),
       token_program.clone(),
@@ -377,15 +377,15 @@ mod coin98_starship {
       amount: amount,
     };
     let mut withdraw_data: Vec<u8> = Vec::new();
-    withdraw_data.extend_from_slice(&[136, 235, 181, 5, 101, 109, 57, 81]);
+    withdraw_data.extend_from_slice(&[27, 191, 15, 150, 68, 201, 127, 133]);
     withdraw_data.extend_from_slice(&withdraw_params.try_to_vec().unwrap());
 
     let instruction = solana_program::instruction::Instruction {
       program_id: *vault_program.key,
       accounts: vec![
+        solana_program::instruction::AccountMeta::new_readonly(*launchpad_signer.key, true),
         solana_program::instruction::AccountMeta::new_readonly(*vault.key, false),
         solana_program::instruction::AccountMeta::new_readonly(*vault_signer.key, false),
-        solana_program::instruction::AccountMeta::new_readonly(*launchpad_signer.key, true),
         solana_program::instruction::AccountMeta::new(*vault_token1.key, false),
         solana_program::instruction::AccountMeta::new(*user_token1.key, false),
         solana_program::instruction::AccountMeta::new_readonly(*token_program.key, false),
@@ -398,9 +398,9 @@ mod coin98_starship {
       &[launchpad.nonce],
     ];
     let result = solana_program::program::invoke_signed(&instruction, &[
+      launchpad_signer.clone(),
       vault.clone(),
       vault_signer.clone(),
-      launchpad_signer.clone(),
       vault_token1.clone(),
       user_token1.clone(),
       token_program.clone(),
@@ -749,6 +749,9 @@ pub enum ErrorCode {
 
   #[msg("Coin98Starship: Min amount not satisfied.")]
   MinAmountNotSatisfied,
+
+  #[msg("Coin98Starship: Only allowed during registration time.")]
+  NotInRegistrationTime,
 
   #[msg("Coin98Starship: Only allowed during sale time.")]
   NotInSaleTime,
