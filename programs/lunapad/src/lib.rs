@@ -34,8 +34,10 @@ mod coin98_starship {
 
   pub fn set_launchpad(
     ctx: Context<SetLaunchpadContext>,
-    price_in_sol: u64,
-    price_in_token: u64,
+    price_in_sol_n: u64,
+    price_in_sol_d: u64,
+    price_in_token_n: u64,
+    price_in_token_d: u64,
     token_program_id: Pubkey,
     token0_mint: Pubkey,
     token1_mint: Pubkey,
@@ -76,8 +78,10 @@ mod coin98_starship {
 
     let launchpad = &mut ctx.accounts.launchpad;
 
-    launchpad.price_in_sol = price_in_sol;
-    launchpad.price_in_token = price_in_token;
+    launchpad.price_in_sol_n = price_in_sol_n;
+    launchpad.price_in_sol_d = price_in_sol_d;
+    launchpad.price_in_token_n = price_in_token_n;
+    launchpad.price_in_token_d = price_in_token_d;
     launchpad.token_program_id = token_program_id;
     launchpad.token0_mint = token0_mint;
     launchpad.token1_mint = token1_mint;
@@ -195,7 +199,7 @@ mod coin98_starship {
     if local_profile.launchpad != *launchpad.to_account_info().key {
       return Err(ErrorCode::InvalidLanchpad.into());
     }
-    if launchpad.price_in_sol == 0u64 {
+    if launchpad.price_in_sol_n == 0u64 {
       return Err(ErrorCode::RedeemBySolNotAllowed.into());
     }
     if !local_profile.is_registered {
@@ -227,7 +231,8 @@ mod coin98_starship {
       return Err(ErrorCode::MaxAmountReached.into());
     }
 
-    let amount_sol = amount.checked_mul(launchpad.price_in_sol).unwrap();
+    let amount_sol = shared::calculate_sub_total(amount, launchpad.price_in_sol_n, launchpad.price_in_sol_d)
+      .unwrap();
     // Transfer lamports
     let result = shared::transfer_lamports(
       &user.to_account_info(),
@@ -301,7 +306,7 @@ mod coin98_starship {
     if local_profile.launchpad != *launchpad.to_account_info().key {
       return Err(ErrorCode::InvalidLanchpad.into());
     }
-    if launchpad.price_in_token == 0u64 {
+    if launchpad.price_in_token_n == 0u64 {
       return Err(ErrorCode::RedeemByTokenNotAllowed.into());
     }
     if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
@@ -333,7 +338,8 @@ mod coin98_starship {
       return Err(ErrorCode::MaxAmountReached.into());
     }
 
-    let amount_token0 = amount.checked_mul(launchpad.price_in_token).unwrap();
+    let amount_token0 = shared::calculate_sub_total(amount, launchpad.price_in_token_n, launchpad.price_in_token_d)
+      .unwrap();
 
     // Transfer token 0
     let result = shared::transfer_token(
@@ -445,7 +451,7 @@ pub struct CreateLaunchpadContext<'info> {
   #[account(init, seeds = [
     &[8, 201, 24, 140, 93, 100, 30, 148],
     &*launchpad_path,
-  ], bump = launchpad_nonce, payer = root, space = 375)]
+  ], bump = launchpad_nonce, payer = root, space = 391)]
   pub launchpad: Account<'info, Launchpad>,
 
   pub rent: Sysvar<'info, Rent>,
@@ -625,8 +631,10 @@ pub struct CreateLocalProfileContext<'info> {
 #[account]
 pub struct Launchpad {
   pub nonce: u8,
-  pub price_in_sol: u64,
-  pub price_in_token: u64,
+  pub price_in_sol_n: u64,
+  pub price_in_sol_d: u64,
+  pub price_in_token_n: u64,
+  pub price_in_token_d: u64,
   pub token_program_id: Pubkey,
   pub token0_mint: Pubkey,
   pub token1_mint: Pubkey,
