@@ -1,8 +1,8 @@
 pub mod constants;
+pub mod shared;
 
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program;
-use anchor_lang::solana_program::keccak::{ hash, hashv };
+use anchor_lang::solana_program::keccak::{ hash };
 use std::convert::TryInto;
 
 declare_id!("SS4VMP9wmqQdehu7Uc6g1Ymsx4BCVVghKp4wRmmy1jj");
@@ -21,7 +21,7 @@ mod coin98_starship {
 
     let root = &ctx.accounts.root;
 
-    if !verify_owner(root.key) {
+    if !shared::verify_owner(root.key) {
       return Err(ErrorCode::InvalidOwner.into());
     }
 
@@ -58,7 +58,7 @@ mod coin98_starship {
     let root = &ctx.accounts.root;
     let clock = &ctx.accounts.clock;
 
-    if !verify_owner(root.key) {
+    if !shared::verify_owner(root.key) {
       return Err(ErrorCode::InvalidOwner.into());
     }
     if register_start_timestamp > register_end_timestamp {
@@ -106,7 +106,7 @@ mod coin98_starship {
 
     let root = &ctx.accounts.root;
 
-    if !verify_owner(root.key) {
+    if !shared::verify_owner(root.key) {
       return Err(ErrorCode::InvalidOwner.into());
     }
 
@@ -153,7 +153,7 @@ mod coin98_starship {
       let whitelist_data = whitelist.try_to_vec().unwrap();
       let leaf = hash(&whitelist_data[..]);
       let root: [u8; 32] = launchpad.private_sale_signature.clone().try_into().unwrap();
-      if !verify_proof(proofs, root, leaf.to_bytes()) {
+      if !shared::verify_proof(proofs, root, leaf.to_bytes()) {
         return Err(ErrorCode::NotWhitelisted.into());
       }
     }
@@ -228,10 +228,13 @@ mod coin98_starship {
     }
 
     let amount_sol = amount.checked_mul(launchpad.price_in_sol).unwrap();
-    let instruction = &solana_program::system_instruction::transfer(user.key, vault_signer.key, amount_sol);
-    let result = solana_program::program::invoke(&instruction, &[
-      user.clone(), vault_signer.clone()
-    ]);
+    // Transfer lamports
+    let result = shared::transfer_lamports(
+      &user.to_account_info(),
+      &vault_signer.to_account_info(),
+      amount_sol,
+      &[]
+    );
     if result.is_err() {
       return Err(ErrorCode::TransactionFailed.into());
     }
@@ -239,39 +242,25 @@ mod coin98_starship {
     let local_profile = &mut ctx.accounts.local_profile;
 
     local_profile.redeemed_token = redeemed_amount;
-
-    let withdraw_params = TransferTokenParams {
-      amount: amount,
-    };
-    let mut withdraw_data: Vec<u8> = Vec::new();
-    withdraw_data.extend_from_slice(&[27, 191, 15, 150, 68, 201, 127, 133]);
-    withdraw_data.extend_from_slice(&withdraw_params.try_to_vec().unwrap());
-
-    let instruction = solana_program::instruction::Instruction {
-      program_id: *vault_program.key,
-      accounts: vec![
-        solana_program::instruction::AccountMeta::new_readonly(*launchpad_signer.key, true),
-        solana_program::instruction::AccountMeta::new_readonly(*vault.key, false),
-        solana_program::instruction::AccountMeta::new_readonly(*vault_signer.key, false),
-        solana_program::instruction::AccountMeta::new(*vault_token1.key, false),
-        solana_program::instruction::AccountMeta::new(*user_token1.key, false),
-        solana_program::instruction::AccountMeta::new_readonly(*token_program.key, false),
-      ],
-      data: withdraw_data,
-    };
     let seeds: &[&[_]] = &[
       &[2, 151, 229, 53, 244,  77, 229,  7],
       launchpad.to_account_info().key.as_ref(),
       &[launchpad.nonce],
     ];
-    let result = solana_program::program::invoke_signed(&instruction, &[
-      launchpad_signer.clone(),
-      vault.clone(),
-      vault_signer.clone(),
-      vault_token1.clone(),
-      user_token1.clone(),
-      token_program.clone(),
-    ], &[&seeds]);
+
+    // Transfer token 1
+    let result = shared::withdraw_token(
+      &amount,
+      &launchpad_signer.to_account_info(),
+      &vault.to_account_info(),
+      &vault_signer.to_account_info(),
+      &vault_token1.to_account_info(),
+      &user_token1.to_account_info(),
+      &vault_program.to_account_info(),
+      &token_program.to_account_info(),
+      &[seeds]
+    );
+
     if result.is_err() {
       return Err(ErrorCode::TransactionFailed.into());
     }
@@ -345,26 +334,16 @@ mod coin98_starship {
     }
 
     let amount_token0 = amount.checked_mul(launchpad.price_in_token).unwrap();
-    let transfer_params = TransferTokenParams {
-      amount: amount_token0,
-    };
-    let mut transfer_data: Vec<u8> = Vec::new();
-    transfer_data.extend_from_slice(&[3]);
-    transfer_data.extend_from_slice(&transfer_params.try_to_vec().unwrap());
-    let instruction = solana_program::instruction::Instruction {
-      program_id: *token_program.key,
-      accounts: vec![
-        solana_program::instruction::AccountMeta::new(*user_token0.key, false),
-        solana_program::instruction::AccountMeta::new(*vault_token0.key, false),
-        solana_program::instruction::AccountMeta::new_readonly(*user.key, true),
-      ],
-      data: transfer_data,
-    };
-    let result = solana_program::program::invoke(&instruction, &[
-      user_token0.clone(),
-      vault_token0.clone(),
-      user.clone(),
-    ]);
+
+    // Transfer token 0
+    let result = shared::transfer_token(
+      &user.to_account_info(),
+      &user_token0.to_account_info(),
+      &vault_token0.to_account_info(),
+      amount_token0,
+      &[]
+    );
+
     if result.is_err() {
       return Err(ErrorCode::TransactionFailed.into());
     }
@@ -373,38 +352,25 @@ mod coin98_starship {
 
     local_profile.redeemed_token = redeemed_amount;
 
-    let withdraw_params = TransferTokenParams {
-      amount: amount,
-    };
-    let mut withdraw_data: Vec<u8> = Vec::new();
-    withdraw_data.extend_from_slice(&[27, 191, 15, 150, 68, 201, 127, 133]);
-    withdraw_data.extend_from_slice(&withdraw_params.try_to_vec().unwrap());
-
-    let instruction = solana_program::instruction::Instruction {
-      program_id: *vault_program.key,
-      accounts: vec![
-        solana_program::instruction::AccountMeta::new_readonly(*launchpad_signer.key, true),
-        solana_program::instruction::AccountMeta::new_readonly(*vault.key, false),
-        solana_program::instruction::AccountMeta::new_readonly(*vault_signer.key, false),
-        solana_program::instruction::AccountMeta::new(*vault_token1.key, false),
-        solana_program::instruction::AccountMeta::new(*user_token1.key, false),
-        solana_program::instruction::AccountMeta::new_readonly(*token_program.key, false),
-      ],
-      data: withdraw_data,
-    };
     let seeds: &[&[_]] = &[
       &[2, 151, 229, 53, 244,  77, 229,  7],
       launchpad.to_account_info().key.as_ref(),
       &[launchpad.nonce],
     ];
-    let result = solana_program::program::invoke_signed(&instruction, &[
-      launchpad_signer.clone(),
-      vault.clone(),
-      vault_signer.clone(),
-      vault_token1.clone(),
-      user_token1.clone(),
-      token_program.clone(),
-    ], &[&seeds]);
+
+    // Transfer token 1
+    let result = shared::withdraw_token(
+      &amount,
+      &launchpad_signer.to_account_info(),
+      &vault.to_account_info(),
+      &vault_signer.to_account_info(),
+      &vault_token1.to_account_info(),
+      &user_token1.to_account_info(),
+      &vault_program.to_account_info(),
+      &token_program.to_account_info(),
+      &[seeds]
+    );
+
     if result.is_err() {
       return Err(ErrorCode::TransactionFailed.into());
     }
@@ -422,7 +388,7 @@ mod coin98_starship {
     let root = &ctx.accounts.root;
     let profile = &ctx.accounts.global_profile;
 
-    if !verify_owner(root.key) {
+    if !shared::verify_owner(root.key) {
       return Err(ErrorCode::InvalidOwner.into());
     }
     // TODO: Check GlobalProfile address
@@ -729,7 +695,7 @@ pub enum ErrorCode {
   #[msg("Coin98Starship: Invalid user.")]
   InvalidUser,
 
-  #[msg("Coin98Starship: Invalid Vault Program Id.")]
+  #[msg("Coin98Starship: Invalid Vault Program ID.")]
   InvalidVaultProgramId,
 
   #[msg("Coin98Starship: Invalid Vault.")]
@@ -744,7 +710,7 @@ pub enum ErrorCode {
   #[msg("Coin98Starship: Invalid Vault Token 1 Account.")]
   InvalidVaultToken1,
 
-  #[msg("Coin98Starship: Min amount reached")]
+  #[msg("Coin98Starship: Max amount reached")]
   MaxAmountReached,
 
   #[msg("Coin98Starship: Min amount not satisfied.")]
@@ -773,29 +739,4 @@ pub enum ErrorCode {
 
   #[msg("Coin98Starship: Transaction failed.")]
   TransactionFailed,
-}
-
-pub fn verify_owner(owner: &Pubkey) -> bool {
-  let owner_key = owner.to_string();
-  let result = constants::ROOT_KEYS.iter().position(|&key| key == &owner_key[..]);
-  result != None
-}
-
-/// Returns true if a `leaf` can be proved to be a part of a Merkle tree
-/// defined by `root`. For this, a `proof` must be provided, containing
-/// sibling hashes on the branch from the leaf to the root of the tree. Each
-/// pair of leaves and each pair of pre-images are assumed to be sorted.
-pub fn verify_proof(proofs: Vec<[u8; 32]>, root: [u8; 32], leaf: [u8; 32]) -> bool {
-  let mut computed_hash = leaf;
-  for proof in proofs.into_iter() {
-    if computed_hash < proof {
-      // Hash(current computed hash + current element of the proof)
-      computed_hash = hashv(&[&computed_hash, &proof]).to_bytes();
-    } else {
-      // Hash(current element of the proof + current computed hash)
-      computed_hash = hashv(&[&proof, &computed_hash]).to_bytes();
-    }
-  }
-  // Check if the computed hash (root) is equal to the provided root
-  computed_hash == root
 }
