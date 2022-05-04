@@ -92,7 +92,7 @@ pub fn withdraw_token<'info>(
   vault_program: &AccountInfo<'info>,
   token_program_id: &AccountInfo<'info>,
   signer_seeds: &[&[&[u8]]],
-) -> ProgramResult {
+) -> Result<()> {
   let withdraw_params = WithdrawTokenParams {
     amount: *amount,
   };
@@ -120,7 +120,9 @@ pub fn withdraw_token<'info>(
     vault_token.clone(),
     user_token.clone(),
     token_program_id.clone(),
-  ], &signer_seeds)
+  ], &signer_seeds)?;
+
+  Ok(())
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Default)]
