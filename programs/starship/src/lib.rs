@@ -1,6 +1,9 @@
+pub mod anchor_spl;
+pub mod anchor_sys_program;
+pub mod coin98_vault;
 pub mod constants;
 pub mod shared;
-pub mod utils;
+pub mod spl_token;
 
 use anchor_lang::prelude::*;
 use anchor_lang::{
@@ -22,7 +25,7 @@ declare_id!("SS4VMP9wmqQdehu7Uc6g1Ymsx4BCVVghKp4wRmmy1jj");
 mod coin98_starship {
   use super::*;
 
-  #[access_control(utils::verify_root(*ctx.accounts.root.key))]
+  #[access_control(verify_root(*ctx.accounts.root.key))]
   pub fn create_launchpad(
     ctx: Context<CreateLaunchpadContext>,
     _launchpad_path: Vec<u8>,
@@ -38,7 +41,7 @@ mod coin98_starship {
     Ok(())
   }
 
-  #[access_control(utils::verify_root(*ctx.accounts.root.key))]
+  #[access_control(verify_root(*ctx.accounts.root.key))]
   pub fn set_launchpad(
     ctx: Context<SetLaunchpadContext>,
     price_in_sol_n: u64,
@@ -105,7 +108,7 @@ mod coin98_starship {
     Ok(())
   }
 
-  #[access_control(utils::verify_root(*ctx.accounts.root.key))]
+  #[access_control(verify_root(*ctx.accounts.root.key))]
   pub fn set_launchpad_status(
     ctx: Context<SetLaunchpadStatusContext>,
     is_active: bool,
@@ -129,14 +132,10 @@ mod coin98_starship {
     let user = &ctx.accounts.user;
     let launchpad = &ctx.accounts.launchpad;
     let global_profile = &ctx.accounts.global_profile;
-    let local_profile = &ctx.accounts.local_profile;
     let clock = Clock::get().unwrap();
 
     if global_profile.is_blacklisted {
       return Err(error!(ErrorCode::Blacklisted));
-    }
-    if local_profile.launchpad != *launchpad.to_account_info().key {
-      return Err(error!(ErrorCode::InvalidLanchpad));
     }
     if clock.unix_timestamp < launchpad.register_start_timestamp || clock.unix_timestamp > launchpad.register_end_timestamp {
       return Err(error!(ErrorCode::NotInRegistrationTime));
@@ -182,9 +181,6 @@ mod coin98_starship {
     if global_profile.is_blacklisted {
       return Err(error!(ErrorCode::Blacklisted));
     }
-    if local_profile.launchpad != *launchpad.to_account_info().key {
-      return Err(error!(ErrorCode::InvalidLanchpad));
-    }
     if launchpad.price_in_sol_n == 0u64 {
       return Err(error!(ErrorCode::RedeemBySolNotAllowed));
     }
@@ -205,7 +201,7 @@ mod coin98_starship {
     let amount_sol = shared::calculate_sub_total(amount, launchpad.price_in_sol_n, launchpad.price_in_sol_d)
       .unwrap();
     // Transfer lamports
-    let result = shared::transfer_lamports(
+    let result = anchor_sys_program::transfer_lamports(
       &user.to_account_info(),
       &vault_signer.to_account_info(),
       amount_sol,
@@ -225,7 +221,7 @@ mod coin98_starship {
     ];
 
     // Transfer token 1
-    let result = shared::withdraw_token(
+    let result = coin98_vault::withdraw_token(
       &amount,
       &launchpad_signer.to_account_info(),
       &vault.to_account_info(),
@@ -268,9 +264,6 @@ mod coin98_starship {
     if global_profile.is_blacklisted {
       return Err(error!(ErrorCode::Blacklisted));
     }
-    if local_profile.launchpad != *launchpad.to_account_info().key {
-      return Err(error!(ErrorCode::InvalidLanchpad));
-    }
     if launchpad.price_in_token_n == 0u64 {
       return Err(error!(ErrorCode::RedeemByTokenNotAllowed));
     }
@@ -289,7 +282,7 @@ mod coin98_starship {
       .unwrap();
 
     // Transfer token 0
-    let result = shared::transfer_token(
+    let result = anchor_spl::transfer_token(
       &user.to_account_info(),
       &user_token0.to_account_info(),
       &vault_token0.to_account_info(),
@@ -312,7 +305,7 @@ mod coin98_starship {
     ];
 
     // Transfer token 1
-    let result = shared::withdraw_token(
+    let result = coin98_vault::withdraw_token(
       &amount,
       &launchpad_signer.to_account_info(),
       &vault.to_account_info(),
@@ -331,7 +324,7 @@ mod coin98_starship {
     Ok(())
   }
 
-  #[access_control(utils::verify_root(*ctx.accounts.root.key))]
+  #[access_control(verify_root(*ctx.accounts.root.key))]
   pub fn set_blacklist(
     ctx: Context<SetBlacklistContext>,
     _user: Pubkey,
@@ -777,9 +770,6 @@ pub enum ErrorCode {
   #[msg("Coin98Starship: Invalid account.")]
   InvalidAccount,
 
-  #[msg("Coin98Starship: Invalid launchpad.")]
-  InvalidLanchpad,
-
   #[msg("Coin98Starship: Not an owner.")]
   InvalidOwner,
 
@@ -818,4 +808,30 @@ pub enum ErrorCode {
 
   #[msg("Coin98Starship: Transaction failed.")]
   TransactionFailed,
+}
+
+/// Verify proof
+pub fn verify_proof(index: u32, user: &Pubkey, proofs: &Vec<[u8; 32]>, launchpad: &Launchpad) -> Result<()> {
+  let whitelist_params = WhitelistParams {
+    index: index,
+    address: *user,
+  };
+  let whitelist_data = whitelist_params.try_to_vec().unwrap();
+  let root: [u8; 32] = launchpad.private_sale_signature.clone().try_into().unwrap();
+  let leaf = hash(&whitelist_data[..]);
+  if !shared::verify_proof(proofs.to_vec(), root, leaf.to_bytes()) {
+    return Err(ErrorCode::NotWhitelisted.into());
+  }
+
+  Ok(())
+}
+
+pub fn verify_root(user: Pubkey) -> Result<()> {
+  let user_key = user.to_string();
+  let result = constants::ROOT_KEYS.iter().position(|&key| key == &user_key[..]);
+  if result == None {
+    return Err(ErrorCode::InvalidOwner.into());
+  }
+
+  Ok(())
 }
