@@ -2,8 +2,18 @@ pub mod constants;
 pub mod shared;
 
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::keccak::{ hash };
-use std::convert::TryInto;
+use anchor_lang::{
+  solana_program::{
+    keccak::{
+      hash,
+    },
+  },
+};
+use std::{
+  convert::{
+    TryInto,
+  },
+};
 
 declare_id!("SS4VMP9wmqQdehu7Uc6g1Ymsx4BCVVghKp4wRmmy1jj");
 
@@ -454,7 +464,7 @@ pub struct CreateLaunchpadContext<'info> {
   ], bump, payer = root, space = 391)]
   pub launchpad: Account<'info, Launchpad>,
 
-  pub system_program: AccountInfo<'info>,
+  pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -505,10 +515,10 @@ pub struct RedeemBySolContext<'info> {
   #[account(signer)]
   pub user: AccountInfo<'info>,
 
-  pub global_profile: Account<'info, GlobalProfile>,
+  pub global_profile: Box<Account<'info, GlobalProfile>>,
 
   #[account(mut)]
-  pub local_profile: Account<'info, LocalProfile>,
+  pub local_profile: Box<Account<'info, LocalProfile>>,
 
   #[account(mut)]
   pub user_token1: AccountInfo<'info>,
@@ -523,7 +533,7 @@ pub struct RedeemBySolContext<'info> {
 
   pub vault_program: AccountInfo<'info>,
 
-  pub system_program: AccountInfo<'info>,
+  pub system_program: Program<'info, System>,
 
   pub token_program: AccountInfo<'info>,
 }
@@ -542,10 +552,10 @@ pub struct RedeemByTokenContext<'info> {
   #[account(signer)]
   pub user: AccountInfo<'info>,
 
-  pub global_profile: Account<'info, GlobalProfile>,
+  pub global_profile: Box<Account<'info, GlobalProfile>>,
 
   #[account(mut)]
-  pub local_profile: Account<'info, LocalProfile>,
+  pub local_profile: Box<Account<'info, LocalProfile>>,
 
   #[account(mut)]
   pub user_token0: AccountInfo<'info>,
@@ -592,7 +602,7 @@ pub struct CreateGlobalProfileContext<'info> {
   ], bump, payer = payer, space = 49)]
   pub global_profile: Account<'info, GlobalProfile>,
 
-  pub system_program: AccountInfo<'info>,
+  pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -611,7 +621,7 @@ pub struct CreateLocalProfileContext<'info> {
   ], bump, payer = payer, space = 90)]
   pub local_profile: Account<'info, LocalProfile>,
 
-  pub system_program: AccountInfo<'info>,
+  pub system_program: Program<'info, System>,
 }
 
 #[account]
