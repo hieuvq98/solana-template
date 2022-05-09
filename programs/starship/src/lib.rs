@@ -1,5 +1,6 @@
 pub mod constants;
 pub mod shared;
+pub mod utils;
 
 use anchor_lang::prelude::*;
 use anchor_lang::{
@@ -21,6 +22,7 @@ declare_id!("SS4VMP9wmqQdehu7Uc6g1Ymsx4BCVVghKp4wRmmy1jj");
 mod coin98_starship {
   use super::*;
 
+  #[access_control(utils::verify_root(*ctx.accounts.root.key))]
   pub fn create_launchpad(
     ctx: Context<CreateLaunchpadContext>,
     _launchpad_path: Vec<u8>,
@@ -29,12 +31,6 @@ mod coin98_starship {
   ) -> Result<()> {
     msg!("Coin98Starship: Instruction_CreateLaunchpad");
 
-    let root = &ctx.accounts.root;
-
-    if !shared::verify_owner(root.key) {
-      return Err(error!(ErrorCode::InvalidOwner));
-    }
-
     let launchpad = &mut ctx.accounts.launchpad;
 
     launchpad.nonce = signer_nonce;
@@ -42,6 +38,7 @@ mod coin98_starship {
     Ok(())
   }
 
+  #[access_control(utils::verify_root(*ctx.accounts.root.key))]
   pub fn set_launchpad(
     ctx: Context<SetLaunchpadContext>,
     price_in_sol_n: u64,
@@ -67,12 +64,8 @@ mod coin98_starship {
   ) -> Result<()> {
     msg!("Coin98Starship: Instruction_SetLaunchpad");
 
-    let root = &ctx.accounts.root;
     let clock = Clock::get().unwrap();
 
-    if !shared::verify_owner(root.key) {
-      return Err(error!(ErrorCode::InvalidOwner));
-    }
     if register_start_timestamp > register_end_timestamp {
       return Err(error!(ErrorCode::InvalidRegistrationTime));
     }
@@ -112,17 +105,12 @@ mod coin98_starship {
     Ok(())
   }
 
+  #[access_control(utils::verify_root(*ctx.accounts.root.key))]
   pub fn set_launchpad_status(
     ctx: Context<SetLaunchpadStatusContext>,
     is_active: bool,
   ) -> Result<()> {
     msg!("Coin98Starship: Instruction_SetLaunchpadStatus");
-
-    let root = &ctx.accounts.root;
-
-    if !shared::verify_owner(root.key) {
-      return Err(error!(ErrorCode::InvalidOwner));
-    }
 
     let launchpad = &mut ctx.accounts.launchpad;
 
@@ -144,14 +132,8 @@ mod coin98_starship {
     let local_profile = &ctx.accounts.local_profile;
     let clock = Clock::get().unwrap();
 
-    if global_profile.user != *user.to_account_info().key {
-      return Err(error!(ErrorCode::InvalidUser));
-    }
     if global_profile.is_blacklisted {
       return Err(error!(ErrorCode::Blacklisted));
-    }
-    if local_profile.user != *user.to_account_info().key {
-      return Err(error!(ErrorCode::InvalidUser));
     }
     if local_profile.launchpad != *launchpad.to_account_info().key {
       return Err(error!(ErrorCode::InvalidLanchpad));
@@ -197,14 +179,8 @@ mod coin98_starship {
     let vault_program = &ctx.accounts.vault_program;
     let token_program = &ctx.accounts.token_program;
 
-    if global_profile.user != *user.to_account_info().key {
-      return Err(error!(ErrorCode::InvalidUser));
-    }
     if global_profile.is_blacklisted {
       return Err(error!(ErrorCode::Blacklisted));
-    }
-    if local_profile.user != *user.to_account_info().key {
-      return Err(error!(ErrorCode::InvalidUser));
     }
     if local_profile.launchpad != *launchpad.to_account_info().key {
       return Err(error!(ErrorCode::InvalidLanchpad));
@@ -217,21 +193,6 @@ mod coin98_starship {
     }
     if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
       return Err(error!(ErrorCode::NotInSaleTime));
-    }
-    if *vault_program.key != launchpad.vault_program_id {
-      return Err(error!(ErrorCode::InvalidVaultProgramId));
-    }
-    if *vault.key != launchpad.vault {
-      return Err(error!(ErrorCode::InvalidVault));
-    }
-    if *token_program.key != launchpad.token_program_id {
-      return Err(error!(ErrorCode::InvalidVaultProgramId));
-    }
-    if *vault_signer.key != launchpad.vault_signer {
-      return Err(error!(ErrorCode::InvalidVaultSigner));
-    }
-    if *vault_token1.key != launchpad.vault_token1 {
-      return Err(error!(ErrorCode::InvalidVaultToken1));
     }
     if launchpad.min_per_tx > 0 && amount < launchpad.min_per_tx {
       return Err(error!(ErrorCode::MinAmountNotSatisfied));
@@ -273,7 +234,7 @@ mod coin98_starship {
       &user_token1.to_account_info(),
       &vault_program.to_account_info(),
       &token_program.to_account_info(),
-      &[seeds]
+      &[seeds],
     );
 
     if result.is_err() {
@@ -304,14 +265,8 @@ mod coin98_starship {
     let vault_program = &ctx.accounts.vault_program;
     let token_program = &ctx.accounts.token_program;
 
-    if global_profile.user != *user.to_account_info().key {
-      return Err(error!(ErrorCode::InvalidUser));
-    }
     if global_profile.is_blacklisted {
       return Err(error!(ErrorCode::Blacklisted));
-    }
-    if local_profile.user != *user.to_account_info().key {
-      return Err(error!(ErrorCode::InvalidUser));
     }
     if local_profile.launchpad != *launchpad.to_account_info().key {
       return Err(error!(ErrorCode::InvalidLanchpad));
@@ -321,24 +276,6 @@ mod coin98_starship {
     }
     if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
       return Err(error!(ErrorCode::NotInSaleTime));
-    }
-    if *vault_program.key != launchpad.vault_program_id {
-      return Err(error!(ErrorCode::InvalidVaultProgramId));
-    }
-    if *token_program.key != launchpad.token_program_id {
-      return Err(error!(ErrorCode::InvalidVaultProgramId));
-    }
-    if *vault.key != launchpad.vault {
-      return Err(error!(ErrorCode::InvalidVault));
-    }
-    if *vault_signer.key != launchpad.vault_signer {
-      return Err(error!(ErrorCode::InvalidVaultSigner));
-    }
-    if *vault_token0.key != launchpad.vault_token0 {
-      return Err(error!(ErrorCode::InvalidVaultToken0));
-    }
-    if *vault_token1.key != launchpad.vault_token1 {
-      return Err(error!(ErrorCode::InvalidVaultToken1));
     }
     if launchpad.min_per_tx > 0 && amount < launchpad.min_per_tx {
       return Err(error!(ErrorCode::MinAmountNotSatisfied));
@@ -384,7 +321,7 @@ mod coin98_starship {
       &user_token1.to_account_info(),
       &vault_program.to_account_info(),
       &token_program.to_account_info(),
-      &[seeds]
+      &[seeds],
     );
 
     if result.is_err() {
@@ -394,23 +331,13 @@ mod coin98_starship {
     Ok(())
   }
 
+  #[access_control(utils::verify_root(*ctx.accounts.root.key))]
   pub fn set_blacklist(
     ctx: Context<SetBlacklistContext>,
-    user: Pubkey,
+    _user: Pubkey,
     is_blacklisted: bool,
   ) -> Result<()> {
     msg!("Coin98Starship: Instruction_SetBlacklist");
-
-    let root = &ctx.accounts.root;
-    let profile = &ctx.accounts.global_profile;
-
-    if !shared::verify_owner(root.key) {
-      return Err(error!(ErrorCode::InvalidOwner));
-    }
-    // TODO: Check GlobalProfile address
-    if profile.user != user {
-      return Err(error!(ErrorCode::InvalidUser));
-    }
 
     let profile = &mut ctx.accounts.global_profile;
 
@@ -421,13 +348,14 @@ mod coin98_starship {
 
   pub fn create_global_profile(
     ctx: Context<CreateGlobalProfileContext>,
-    _nonce: u8,
+    nonce: u8,
     user: Pubkey,
   ) -> Result<()> {
     msg!("Coin98Starship: Instruction_CreateGlobalProfile");
 
     let profile = &mut ctx.accounts.global_profile;
 
+    profile.nonce = nonce;
     profile.user = user;
 
     Ok(())
@@ -435,7 +363,7 @@ mod coin98_starship {
 
   pub fn create_local_profile(
     ctx: Context<CreateLocalProfileContext>,
-    _nonce: u8,
+    nonce: u8,
     user: Pubkey,
   ) -> Result<()> {
     msg!("Coin98Starship: Instruction_CreateLocalProfile");
@@ -444,7 +372,8 @@ mod coin98_starship {
 
     let profile = &mut ctx.accounts.local_profile;
 
-    profile.launchpad = *launchpad.key;
+    profile.nonce = nonce;
+    profile.launchpad = launchpad.key();
     profile.user = user;
 
     Ok(())
@@ -455,13 +384,20 @@ mod coin98_starship {
 #[instruction(launchpad_path: Vec<u8>, _launchpad_nonce: u8)]
 pub struct CreateLaunchpadContext<'info> {
 
+  /// CHECK: program owner, verified using #access_control
   #[account(mut, signer)]
   pub root: AccountInfo<'info>,
 
-  #[account(init, seeds = [
-    &[8, 201, 24, 140, 93, 100, 30, 148],
-    &*launchpad_path,
-  ], bump, payer = root, space = 391)]
+  #[account(
+    init,
+    seeds = [
+      &[8, 201, 24, 140, 93, 100, 30, 148],
+      &*launchpad_path,
+    ],
+    bump,
+    payer = root,
+    space = Launchpad::LEN,
+  )]
   pub launchpad: Account<'info, Launchpad>,
 
   pub system_program: Program<'info, System>,
@@ -470,6 +406,7 @@ pub struct CreateLaunchpadContext<'info> {
 #[derive(Accounts)]
 pub struct SetLaunchpadContext<'info> {
 
+  /// CHECK: program owner, verified using #access_control
   #[account(signer)]
   pub root: AccountInfo<'info>,
 
@@ -480,6 +417,7 @@ pub struct SetLaunchpadContext<'info> {
 #[derive(Accounts)]
 pub struct SetLaunchpadStatusContext<'info> {
 
+  /// CHECK: program owner, verified using #access_control
   #[account(signer)]
   pub root: AccountInfo<'info>,
 
@@ -492,12 +430,32 @@ pub struct RegisterContext<'info> {
 
   pub launchpad: Account<'info, Launchpad>,
 
+  /// CHECK: public user
   #[account(signer)]
   pub user: AccountInfo<'info>,
 
+  #[account(
+    seeds = [
+      &[139, 126, 195, 157, 204, 134, 142, 146],
+      &[32, 40, 118, 173, 164, 46, 192, 86],
+      user.key().as_ref(),
+    ],
+    bump = global_profile.nonce,
+    constraint = global_profile.user == user.key() @ErrorCode::InvalidAccount,
+  )]
   pub global_profile: Account<'info, GlobalProfile>,
 
-  #[account(mut)]
+  #[account(
+    mut,
+    seeds = [
+      &[133, 177, 201, 78, 13, 152, 198, 180],
+      launchpad.key().as_ref(),
+      user.key().as_ref(),
+    ],
+    bump = local_profile.nonce,
+    constraint = local_profile.launchpad == launchpad.key() @ErrorCode::InvalidAccount,
+    constraint = local_profile.user == user.key() @ErrorCode::InvalidAccount,
+  )]
   pub local_profile: Account<'info, LocalProfile>,
 }
 
@@ -506,35 +464,80 @@ pub struct RedeemBySolContext<'info> {
 
   pub launchpad: Account<'info, Launchpad>,
 
-  #[account(seeds = [
-    &[2, 151, 229, 53, 244,  77, 229,  7],
-    launchpad.to_account_info().key.as_ref(),
-  ], bump = launchpad.nonce)]
+  /// CHECK: PDA to authorize launchpad tx
+  #[account(
+    seeds = [
+      &[2, 151, 229, 53, 244,  77, 229,  7],
+      launchpad.key().as_ref(),
+    ],
+    bump = launchpad.nonce,
+  )]
   pub launchpad_signer: AccountInfo<'info>,
 
+  /// CHECK: public user
   #[account(signer)]
   pub user: AccountInfo<'info>,
 
+  #[account(
+    seeds = [
+      &[139, 126, 195, 157, 204, 134, 142, 146],
+      &[32, 40, 118, 173, 164, 46, 192, 86],
+      user.key().as_ref(),
+    ],
+    bump = global_profile.nonce,
+    constraint = global_profile.user == user.key() @ErrorCode::InvalidAccount,
+  )]
   pub global_profile: Box<Account<'info, GlobalProfile>>,
 
-  #[account(mut)]
+  #[account(
+    mut,
+    seeds = [
+      &[133, 177, 201, 78, 13, 152, 198, 180],
+      launchpad.key().as_ref(),
+      user.key().as_ref(),
+    ],
+    bump = local_profile.nonce,
+    constraint = local_profile.launchpad == launchpad.key() @ErrorCode::InvalidAccount,
+    constraint = local_profile.user == user.key() @ErrorCode::InvalidAccount,
+  )]
   pub local_profile: Box<Account<'info, LocalProfile>>,
 
+  /// CHECK: User token account to receive token sale
   #[account(mut)]
   pub user_token1: AccountInfo<'info>,
 
+  /// CHECK: Vault holding token for sale
+  #[account(
+    constraint = vault.key() == launchpad.vault @ErrorCode::InvalidAccount,
+  )]
   pub vault: AccountInfo<'info>,
 
-  #[account(mut)]
+  /// CHECK: PDA to hold vault asset
+  #[account(
+    mut,
+    constraint = vault_signer.key() == launchpad.vault_signer @ErrorCode::InvalidAccount,
+  )]
   pub vault_signer: AccountInfo<'info>,
 
-  #[account(mut)]
+  /// CHECK: Vault token account to send token sale
+  #[account(
+    mut,
+    constraint = vault_token1.key() == launchpad.vault_token1 @ErrorCode::InvalidAccount,
+  )]
   pub vault_token1: AccountInfo<'info>,
 
+  /// CHECK: Vault holding token for sale
+  #[account(
+    constraint = vault_program.key() == launchpad.vault_program_id @ErrorCode::InvalidAccount,
+  )]
   pub vault_program: AccountInfo<'info>,
 
   pub system_program: Program<'info, System>,
 
+  /// CHECK: Solana native Token Program
+  #[account(
+    constraint = token_program.key() == launchpad.token_program_id @ErrorCode::InvalidAccount,
+  )]
   pub token_program: AccountInfo<'info>,
 }
 
@@ -543,82 +546,158 @@ pub struct RedeemByTokenContext<'info> {
 
   pub launchpad: Account<'info, Launchpad>,
 
-  #[account(seeds = [
-    &[2, 151, 229, 53, 244,  77, 229,  7],
-    launchpad.to_account_info().key.as_ref(),
-  ], bump = launchpad.nonce)]
+  /// CHECK: PDA to authorize launchpad tx
+  #[account(
+    seeds = [
+      &[2, 151, 229, 53, 244,  77, 229,  7],
+      launchpad.key().as_ref(),
+    ],
+    bump = launchpad.nonce,
+  )]
   pub launchpad_signer: AccountInfo<'info>,
 
+  /// CHECK: public user
   #[account(signer)]
   pub user: AccountInfo<'info>,
 
+  #[account(
+    seeds = [
+      &[139, 126, 195, 157, 204, 134, 142, 146],
+      &[32, 40, 118, 173, 164, 46, 192, 86],
+      user.key().as_ref(),
+    ],
+    bump = global_profile.nonce,
+    constraint = global_profile.user == user.key() @ErrorCode::InvalidAccount,
+  )]
   pub global_profile: Box<Account<'info, GlobalProfile>>,
 
-  #[account(mut)]
+  #[account(
+    mut,
+    seeds = [
+      &[133, 177, 201, 78, 13, 152, 198, 180],
+      launchpad.key().as_ref(),
+      user.key().as_ref(),
+    ],
+    bump = local_profile.nonce,
+    constraint = local_profile.launchpad == launchpad.key() @ErrorCode::InvalidAccount,
+    constraint = local_profile.user == user.key() @ErrorCode::InvalidAccount,
+  )]
   pub local_profile: Box<Account<'info, LocalProfile>>,
 
+  /// CHECK: User token account to buy token
   #[account(mut)]
   pub user_token0: AccountInfo<'info>,
 
+  /// CHECK: User token account to receive token sale
   #[account(mut)]
   pub user_token1: AccountInfo<'info>,
 
+  /// CHECK: Vault holding token for sale
+  #[account(
+    constraint = vault.key() == launchpad.vault @ErrorCode::InvalidAccount,
+  )]
   pub vault: AccountInfo<'info>,
 
+  /// CHECK: PDA to hold vault asset
+  #[account(
+    mut,
+    constraint = vault_signer.key() == launchpad.vault_signer @ErrorCode::InvalidAccount,
+  )]
   pub vault_signer: AccountInfo<'info>,
 
-  #[account(mut)]
+  /// CHECK: Vault token account to receive token
+  #[account(
+    mut,
+    constraint = vault_token0.key() == launchpad.vault_token0 @ErrorCode::InvalidAccount,
+  )]
   pub vault_token0: AccountInfo<'info>,
 
-  #[account(mut)]
+  /// CHECK: Vault token account to send token sale
+  #[account(
+    mut,
+    constraint = vault_token1.key() == launchpad.vault_token1 @ErrorCode::InvalidAccount,
+  )]
   pub vault_token1: AccountInfo<'info>,
 
+  /// CHECK: Vault holding token for sale
+  #[account(
+    constraint = vault_program.key() == launchpad.vault_program_id @ErrorCode::InvalidAccount,
+  )]
   pub vault_program: AccountInfo<'info>,
 
+  /// CHECK: Solana native Token Program
+  #[account(
+    constraint = token_program.key() == launchpad.token_program_id @ErrorCode::InvalidAccount,
+  )]
   pub token_program: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
+#[instruction(user: Pubkey)]
 pub struct SetBlacklistContext<'info> {
 
+  /// CHECK: program owner, verified using #access_control
   #[account(signer)]
   pub root: AccountInfo<'info>,
 
-  #[account(mut)]
+  #[account(
+    mut,
+    seeds = [
+      &[139, 126, 195, 157, 204, 134, 142, 146],
+      &[32, 40, 118, 173, 164, 46, 192, 86],
+      user.as_ref(),
+    ],
+    bump = global_profile.nonce,
+    constraint = global_profile.user == user @ErrorCode::InvalidAccount,
+  )]
   pub global_profile: Account<'info, GlobalProfile>,
 }
 
 #[derive(Accounts)]
-#[instruction(profile_nonce: u8, user: Pubkey)]
+#[instruction(_profile_nonce: u8, user: Pubkey)]
 pub struct CreateGlobalProfileContext<'info> {
 
+  /// CHECK: Fee payer
   #[account(mut, signer)]
   pub payer: AccountInfo<'info>,
 
-  #[account(init, seeds = [
-    &[139, 126, 195, 157, 204, 134, 142, 146],
-    &[32, 40, 118, 173, 164, 46, 192, 86],
-    user.as_ref(),
-  ], bump, payer = payer, space = 49)]
+  #[account(
+    init,
+    seeds = [
+      &[139, 126, 195, 157, 204, 134, 142, 146],
+      &[32, 40, 118, 173, 164, 46, 192, 86],
+      user.as_ref(),
+    ],
+    bump,
+    payer = payer,
+    space = GlobalProfile::LEN,
+  )]
   pub global_profile: Account<'info, GlobalProfile>,
 
   pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
-#[instruction(profile_nonce: u8, user: Pubkey)]
+#[instruction(_profile_nonce: u8, user: Pubkey)]
 pub struct CreateLocalProfileContext<'info> {
 
+  /// CHECK: Fee payer
   #[account(mut, signer)]
   pub payer: AccountInfo<'info>,
 
-  pub launchpad: AccountInfo<'info>,
+  pub launchpad: Account<'info, Launchpad>,
 
-  #[account(init, seeds = [
-    &[133, 177, 201, 78, 13, 152, 198, 180],
-    launchpad.key.as_ref(),
-    user.as_ref(),
-  ], bump, payer = payer, space = 90)]
+  #[account(
+    init,
+    seeds = [
+      &[133, 177, 201, 78, 13, 152, 198, 180],
+      launchpad.key().as_ref(),
+      user.as_ref(),
+    ],
+    bump,
+    payer = payer,
+    space = LocalProfile::LEN,
+  )]
   pub local_profile: Account<'info, LocalProfile>,
 
   pub system_program: Program<'info, System>,
@@ -649,19 +728,30 @@ pub struct Launchpad {
   pub redeem_end_timestamp: i64,
   pub is_active: bool,
 }
+impl Launchpad {
+  pub const LEN: usize = 16 + 1 + 8 + 8 + 8 + 8 + 16 + 16 + 16 + 16 + 16 + 16 + 16 + 16 + 1 + 36 + 8 + 8 + 8 + 8 + 8 + 8 + 1;
+}
 
 #[account]
 pub struct GlobalProfile {
+  pub nonce: u8,
   pub user: Pubkey,
   pub is_blacklisted: bool,
+}
+impl GlobalProfile {
+  pub const LEN: usize = 16 + 1 + 32 + 1;
 }
 
 #[account]
 pub struct LocalProfile {
+  pub nonce: u8,
   pub launchpad: Pubkey,
   pub user: Pubkey,
   pub is_registered: bool,
   pub redeemed_token: u64,
+}
+impl LocalProfile {
+  pub const LEN: usize = 16 + 1 + 32 + 32 + 1 + 8;
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Default)]
@@ -684,6 +774,9 @@ pub enum ErrorCode {
   #[msg("Coin98Starship: Time must be set in the future.")]
   FutureTimeRequired,
 
+  #[msg("Coin98Starship: Invalid account.")]
+  InvalidAccount,
+
   #[msg("Coin98Starship: Invalid launchpad.")]
   InvalidLanchpad,
 
@@ -695,24 +788,6 @@ pub enum ErrorCode {
 
   #[msg("Coin98Starship: Invalid sale time range.")]
   InvalidSaleTime,
-
-  #[msg("Coin98Starship: Invalid user.")]
-  InvalidUser,
-
-  #[msg("Coin98Starship: Invalid Vault Program ID.")]
-  InvalidVaultProgramId,
-
-  #[msg("Coin98Starship: Invalid Vault.")]
-  InvalidVault,
-
-  #[msg("Coin98Starship: Invalid Vault Signer.")]
-  InvalidVaultSigner,
-
-  #[msg("Coin98Starship: Invalid Vault Token 0 Account.")]
-  InvalidVaultToken0,
-
-  #[msg("Coin98Starship: Invalid Vault Token 1 Account.")]
-  InvalidVaultToken1,
 
   #[msg("Coin98Starship: Max amount reached")]
   MaxAmountReached,

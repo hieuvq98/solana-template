@@ -1,4 +1,3 @@
-use crate::constants::ROOT_KEYS;
 use std::convert::{
   TryFrom
 };
@@ -128,12 +127,6 @@ pub fn withdraw_token<'info>(
 #[derive(AnchorSerialize, AnchorDeserialize, Default)]
 pub struct WithdrawTokenParams {
   pub amount: u64,
-}
-
-pub fn verify_owner(owner: &Pubkey) -> bool {
-  let owner_key = owner.to_string();
-  let result = ROOT_KEYS.iter().position(|&key| key == &owner_key[..]);
-  result != None
 }
 
 /// Returns true if a `leaf` can be proved to be a part of a Merkle tree
