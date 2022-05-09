@@ -1,7 +1,11 @@
 # Intermediate file & folders
+/.DS_Store
+/.anchor
 /build
 /dist
 /node_modules
-/target
 /shared_accounts/*.json
-/package-lock.json
+/target
+Cargo.lock
+package-lock.json
+yarn.lock

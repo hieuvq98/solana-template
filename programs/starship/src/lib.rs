@@ -58,7 +58,7 @@ mod coin98_starship {
     msg!("Coin98Starship: Instruction_SetLaunchpad");
 
     let root = &ctx.accounts.root;
-    let clock = &ctx.accounts.clock;
+    let clock = Clock::get().unwrap();
 
     if !shared::verify_owner(root.key) {
       return Err(error!(ErrorCode::InvalidOwner));
@@ -132,7 +132,7 @@ mod coin98_starship {
     let launchpad = &ctx.accounts.launchpad;
     let global_profile = &ctx.accounts.global_profile;
     let local_profile = &ctx.accounts.local_profile;
-    let clock = &ctx.accounts.clock;
+    let clock = Clock::get().unwrap();
 
     if global_profile.user != *user.to_account_info().key {
       return Err(error!(ErrorCode::InvalidUser));
@@ -183,7 +183,7 @@ mod coin98_starship {
     let vault = &ctx.accounts.vault;
     let vault_signer = &ctx.accounts.vault_signer;
     let vault_token1 = &ctx.accounts.vault_token1;
-    let clock = &ctx.accounts.clock;
+    let clock = Clock::get().unwrap();
     let vault_program = &ctx.accounts.vault_program;
     let token_program = &ctx.accounts.token_program;
 
@@ -290,7 +290,7 @@ mod coin98_starship {
     let vault_signer = &ctx.accounts.vault_signer;
     let vault_token0 = &ctx.accounts.vault_token0;
     let vault_token1 = &ctx.accounts.vault_token1;
-    let clock = &ctx.accounts.clock;
+    let clock = Clock::get().unwrap();
     let vault_program = &ctx.accounts.vault_program;
     let token_program = &ctx.accounts.token_program;
 
@@ -454,8 +454,6 @@ pub struct CreateLaunchpadContext<'info> {
   ], bump, payer = root, space = 391)]
   pub launchpad: Account<'info, Launchpad>,
 
-  pub rent: Sysvar<'info, Rent>,
-
   pub system_program: AccountInfo<'info>,
 }
 
@@ -467,8 +465,6 @@ pub struct SetLaunchpadContext<'info> {
 
   #[account(mut)]
   pub launchpad: Account<'info, Launchpad>,
-
-  pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
@@ -493,8 +489,6 @@ pub struct RegisterContext<'info> {
 
   #[account(mut)]
   pub local_profile: Account<'info, LocalProfile>,
-
-  pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
@@ -526,8 +520,6 @@ pub struct RedeemBySolContext<'info> {
 
   #[account(mut)]
   pub vault_token1: AccountInfo<'info>,
-
-  pub clock: Sysvar<'info, Clock>,
 
   pub vault_program: AccountInfo<'info>,
 
@@ -571,8 +563,6 @@ pub struct RedeemByTokenContext<'info> {
   #[account(mut)]
   pub vault_token1: AccountInfo<'info>,
 
-  pub clock: Sysvar<'info, Clock>,
-
   pub vault_program: AccountInfo<'info>,
 
   pub token_program: AccountInfo<'info>,
@@ -602,8 +592,6 @@ pub struct CreateGlobalProfileContext<'info> {
   ], bump, payer = payer, space = 49)]
   pub global_profile: Account<'info, GlobalProfile>,
 
-  pub rent: Sysvar<'info, Rent>,
-
   pub system_program: AccountInfo<'info>,
 }
 
@@ -622,8 +610,6 @@ pub struct CreateLocalProfileContext<'info> {
     user.as_ref(),
   ], bump, payer = payer, space = 90)]
   pub local_profile: Account<'info, LocalProfile>,
-
-  pub rent: Sysvar<'info, Rent>,
 
   pub system_program: AccountInfo<'info>,
 }
