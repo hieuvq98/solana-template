@@ -9,7 +9,7 @@ import BN from 'bn.js';
 import moment from 'moment';
 import { HashService, BorshService, SolanaService } from '@coin98/solana-support-library';
 import { MerkleNode, MerkleTree } from '@coin98/solana-support-library/core';
-import { VaultService } from '../vault/vault.service';
+import { VaultService } from '@coin98/vault-js';
 import {
   Launchpad,
   StarshipInstructionService,
