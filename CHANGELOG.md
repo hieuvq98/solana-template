@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.1.1](https://github.com/coin98/coin98-starship/compare/v1.1.0...v1.1.1) (2022-06-01)
+
+
+### Bug Fixes
+
+* **package:** build command ([5463a00](https://github.com/coin98/coin98-starship/commit/5463a004eef4dbb535014f44a17a1b6e27329180))
+
 ## 1.1.0 (2022-06-01)
 
 
