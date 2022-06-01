@@ -1,5 +1,5 @@
 {
-  "name": "starship-js",
+  "name": "@coin98/starship-js",
   "version": "1.0.0",
   "description": "",
   "main": "services/index.js",
