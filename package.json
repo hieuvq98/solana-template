@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "services/index.js",
+  "types": "services/index.d.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/coin98/coin98-starship.git"
