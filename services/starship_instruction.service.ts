@@ -19,11 +19,6 @@ export interface Whitelist {
   address: PublicKey;
 }
 
-export const WHITELIST_LAYOUT = borsh.struct<Whitelist>([
-  borsh.u32('index'),
-  borsh.publicKey('address'),
-]);
-
 interface CreateGlobalProfileRequest {
   nonce: number;
   user: PublicKey;
@@ -34,6 +29,11 @@ interface CreateLaunchpadRequest {
   launchpadNonce: number;
   signerNonce: number;
 }
+
+export const WHITELIST_LAYOUT = borsh.struct<Whitelist>([
+  borsh.u32('index'),
+  borsh.publicKey('address'),
+]);
 
 interface CreateLocalProfileRequest {
   nonce: number;
