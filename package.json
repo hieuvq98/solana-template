@@ -23,7 +23,7 @@
     "build:program": "anchor build",
     "build": "npm run build:services && npm run build:program",
     "prerelease": "npm run test && npm run build && cp .npmrc dist",
-    "release": "standard-version && cp package.json dist && git push --follow-tags origin main && cd dist && npm publish"
+    "release": "standard-version && cp package.json dist && git push --follow-tags origin master && cd dist && npm publish"
   },
   "dependencies": {
     "@coin98/solana-support-library": "0.2.0",
