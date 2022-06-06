@@ -248,4 +248,63 @@ describe("Profile Test",() => {
       PROGRAM_ID
     )
   })
+
+  it("Redeem With Token!", async () => {
+    await SystemProgramService.transfer(
+      connection,
+      defaultAccount,
+      testAccount1.publicKey,
+      1000000000
+    )
+
+    const proofs = redemptiomTree.getProof(0)
+
+    await wait(2000)
+    await StarshipService.register(
+      connection,
+      testAccount1,
+      0,
+      proofs.map(item => item.hash),
+      launchpadAddress,
+      PROGRAM_ID
+    )
+
+    const testAccount1Token0Address: PublicKey = await TokenProgramService.createAssociatedTokenAccount(
+      connection,
+      defaultAccount,
+      testAccount1.publicKey,
+      token0Mint.publicKey,
+    )
+
+    await TokenProgramService.mint(
+      connection,
+      defaultAccount,
+      token0Mint.publicKey,
+      testAccount1.publicKey,
+      new BN(10000)
+    )
+
+    const testAccount1Token1Address: PublicKey = await TokenProgramService.createAssociatedTokenAccount(
+      connection,
+      defaultAccount,
+      testAccount1.publicKey,
+      token1Mint.publicKey,
+    )
+
+    await wait(20000)
+
+    await StarshipService.redeemByToken(
+      connection,
+      testAccount1,
+      launchpadAddress,
+      testAccount1Token0Address,
+      testAccount1Token1Address,
+      vaultAddress,
+      vaultToken0Address,
+      vaultToken1Address,
+      4,
+      VAULT_PROGRAM_ID,
+      PROGRAM_ID
+    )
+  })
 })
