@@ -464,7 +464,7 @@ export class StarshipService {
     console.info(`Vault Token1:       ${accountData.vaultToken1.toBase58()} -- ${accountData.vaultToken1.toBuffer().toString('hex')}`);
     console.info(`Is Private:         ${accountData.isPrivateSale}`);
     console.info(`Private Signature:  ${accountData.privateSaleSignature.toString('hex')} - ${accountData.privateSaleSignature.toJSON().data}`);
-    console.info(`Min per tx:         ${accountData.minPerTransaction.toNumber()}`);
+    console.info(`Min per tx:         ${accountData.minPerTx.toNumber()}`);
     console.info(`Max per user:       ${accountData.maxPerUser.toNumber()}`);
     console.info(`Register time start:${moment(accountData.registerStartTimestamp.toNumber() * 1000).format('dddd, MMMM Do YYYY, hh:mm:ss')} -- ${accountData.registerStartTimestamp}`);
     console.info(`Register time end:  ${moment(accountData.registerEndTimestamp.toNumber() * 1000).format('dddd, MMMM Do YYYY, hh:mm:ss')} -- ${accountData.registerEndTimestamp}`);

@@ -4,8 +4,6 @@ import {
   AccountMeta,
   PublicKey,
   SystemProgram,
-  SYSVAR_CLOCK_PUBKEY,
-  SYSVAR_RENT_PUBKEY,
   TransactionInstruction,
 } from '@solana/web3.js';
 import BN from 'bn.js';
@@ -25,7 +23,7 @@ interface CreateGlobalProfileRequest {
 }
 
 interface CreateLaunchpadRequest {
-  derivationPath: Buffer;
+  launchpadPath: Buffer;
   launchpadNonce: number;
   signerNonce: number;
 }
@@ -72,7 +70,7 @@ interface SetLaunchpadRequest {
   vaultToken1: PublicKey;
   isPrivateSale: boolean;
   privateSaleSignature: Buffer;
-  minPerTransaction: BN;
+  minPerTx: BN;
   maxPerUser: BN;
   registerStartTimestamp: BN;
   registerEndTimestamp: BN;
@@ -102,7 +100,7 @@ export interface Launchpad {
   vaultToken1: PublicKey;
   isPrivateSale: boolean;
   privateSaleSignature: Buffer;
-  minPerTransaction: BN;
+  minPerTx: BN;
   maxPerUser: BN;
   registerStartTimestamp: BN;
   registerEndTimestamp: BN;
@@ -135,7 +133,6 @@ export class StarshipInstructionService {
     const keys: AccountMeta[] = [
       <AccountMeta>{ pubkey: payerAddress, isSigner: true, isWritable: false },
       <AccountMeta>{ pubkey: userGlobalProfileAddress, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false, },
     ];
 
@@ -155,7 +152,7 @@ export class StarshipInstructionService {
     starshipProgramId: PublicKey
   ): TransactionInstruction {
     const request: CreateLaunchpadRequest = {
-      derivationPath: launchpadPath,
+      launchpadPath,
       launchpadNonce: launchpadNonce,
       signerNonce: signerNonce,
     };
@@ -163,7 +160,6 @@ export class StarshipInstructionService {
     const keys: AccountMeta[] = [
       <AccountMeta>{ pubkey: payerAddress, isSigner: true, isWritable: false },
       <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false, },
     ];
 
@@ -213,7 +209,7 @@ export class StarshipInstructionService {
       vaultToken1: vaultToken1Address,
       isPrivateSale: isPrivateSale,
       privateSaleSignature: privateSaleSignature,
-      minPerTransaction: new BN(minPerTransaction),
+      minPerTx: new BN(minPerTransaction),
       maxPerUser: new BN(maxPerUser),
       registerStartTimestamp: new BN(registerStartTimestamp),
       registerEndTimestamp: new BN(registerEndTimestamp),
@@ -224,7 +220,6 @@ export class StarshipInstructionService {
     const keys: AccountMeta[] = [
       <AccountMeta>{ pubkey: rootAddress, isSigner: true, isWritable: false },
       <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false, },
     ];
     return new TransactionInstruction({
       keys,
@@ -250,7 +245,6 @@ export class StarshipInstructionService {
       <AccountMeta>{ pubkey: payerAddress, isSigner: true, isWritable: false },
       <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: userLocalProfileAddress, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false, },
     ];
 
@@ -285,15 +279,14 @@ export class StarshipInstructionService {
     const data = coder.instruction.encode("redeemBySol", request)
     const keys: AccountMeta[] = [
       <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: false, },
-      <AccountMeta>{ pubkey: launchpadSignerAddress, isSigner: false, isWritable: false, },
-      <AccountMeta>{ pubkey: userAddress, isSigner: true, isWritable: false },
+      <AccountMeta>{ pubkey: launchpadSignerAddress, isSigner: false, isWritable: true, },
+      <AccountMeta>{ pubkey: userAddress, isSigner: true, isWritable: true },
       <AccountMeta>{ pubkey: userGlobalProfileAddress, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: userLocalProfileAddress, isSigner: false, isWritable: true, },
       <AccountMeta>{ pubkey: userToken1Address, isSigner: false, isWritable: true, },
       <AccountMeta>{ pubkey: vaultAddress, isSigner: false, isWritable: false },
       <AccountMeta>{ pubkey: vaultSignerAddress, isSigner: false, isWritable: true, },
       <AccountMeta>{ pubkey: vaultToken1Address, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: vaultProgramId, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false, },
@@ -338,7 +331,6 @@ export class StarshipInstructionService {
       <AccountMeta>{ pubkey: vaultSignerAddress, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: vaultToken0Address, isSigner: false, isWritable: true, },
       <AccountMeta>{ pubkey: vaultToken1Address, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: vaultProgramId, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false, },
     ];
@@ -369,7 +361,6 @@ export class StarshipInstructionService {
       <AccountMeta>{ pubkey: userAddress, isSigner: true, isWritable: false },
       <AccountMeta>{ pubkey: userGlobalProfileAddress, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: userLocalProfileAddress, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false, },
     ];
 
     return new TransactionInstruction({

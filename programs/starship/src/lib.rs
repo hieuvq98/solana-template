@@ -722,7 +722,7 @@ pub struct Launchpad {
   pub is_active: bool,
 }
 impl Launchpad {
-  pub const LEN: usize = 16 + 1 + 8 + 8 + 8 + 8 + 16 + 16 + 16 + 16 + 16 + 16 + 16 + 16 + 1 + 36 + 8 + 8 + 8 + 8 + 8 + 8 + 1;
+  pub const LEN: usize = 16 + 1 + 8 + 8 + 8 + 8 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 1 + 36 + 8 + 8 + 8 + 8 + 8 + 8 + 1;
 }
 
 #[account]

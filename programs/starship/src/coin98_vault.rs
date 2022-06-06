@@ -36,7 +36,7 @@ pub fn withdraw_token<'info>(
   let instruction = solana_program::instruction::Instruction {
     program_id: *vault_program.key,
     accounts: vec![
-      solana_program::instruction::AccountMeta::new_readonly(*authority.key, true),
+      solana_program::instruction::AccountMeta::new(*authority.key, true),
       solana_program::instruction::AccountMeta::new_readonly(*vault.key, false),
       solana_program::instruction::AccountMeta::new_readonly(*vault_signer.key, false),
       solana_program::instruction::AccountMeta::new(*vault_token.key, false),
