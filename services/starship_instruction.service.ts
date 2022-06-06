@@ -279,8 +279,8 @@ export class StarshipInstructionService {
     const data = coder.instruction.encode("redeemBySol", request)
     const keys: AccountMeta[] = [
       <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: false, },
-      <AccountMeta>{ pubkey: launchpadSignerAddress, isSigner: false, isWritable: false, },
-      <AccountMeta>{ pubkey: userAddress, isSigner: true, isWritable: false },
+      <AccountMeta>{ pubkey: launchpadSignerAddress, isSigner: false, isWritable: true, },
+      <AccountMeta>{ pubkey: userAddress, isSigner: true, isWritable: true },
       <AccountMeta>{ pubkey: userGlobalProfileAddress, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: userLocalProfileAddress, isSigner: false, isWritable: true, },
       <AccountMeta>{ pubkey: userToken1Address, isSigner: false, isWritable: true, },

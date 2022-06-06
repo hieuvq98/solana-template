@@ -22,7 +22,6 @@ describe("Profile Test",() => {
   
   const testAccount1: Keypair = Keypair.generate()
   const testAccount2: Keypair = Keypair.generate()
-  const testAccount3: Keypair = Keypair.generate()
 
   const token0Mint: Keypair = Keypair.generate()
   const token1Mint: Keypair = Keypair.generate()
@@ -36,16 +35,12 @@ describe("Profile Test",() => {
       index: 1,
       address: testAccount2.publicKey,
     },
-    <WhitelistParams>{
-      index: 2,
-      address: testAccount3.publicKey,
-    },
   ]
 
   const redemptiomTree = new RedemptionTree(whitelist)
 
   const isPrivateSale: boolean = true
-  const saleLimitPerTransaction = 10
+  const saleLimitPerTransaction = 1
   const saleLimitPerUser = 10
 
   let vaultAddress: PublicKey
@@ -88,16 +83,34 @@ describe("Profile Test",() => {
     vaultAddress = (await VaultService.findVaultAddress(vaultName, VAULT_PROGRAM_ID))[0]
     vaultSignerAddress = (await VaultService.findVaultSignerAddress(vaultAddress, VAULT_PROGRAM_ID))[0]
     
-    vaultToken0Address = await TokenProgramService.findAssociatedTokenAddress(
+    vaultToken0Address = await TokenProgramService.createAssociatedTokenAccount(
+      connection,
+      defaultAccount,
       vaultSignerAddress,
       token0Mint.publicKey
     )
 
-    vaultToken1Address = await TokenProgramService.findAssociatedTokenAddress(
+    await SystemProgramService.transfer(
+      connection,
+      defaultAccount,
+      vaultSignerAddress,
+      1000000000
+    )
+    
+    vaultToken1Address = await TokenProgramService.createAssociatedTokenAccount(
+      connection,
+      defaultAccount,
       vaultSignerAddress,
       token1Mint.publicKey
     )
 
+    await TokenProgramService.mint(
+      connection,
+      defaultAccount,
+      token1Mint.publicKey,
+      vaultToken1Address,
+      new BN(10000000)
+    )
   }) 
 
   beforeEach(async () => {
@@ -109,7 +122,7 @@ describe("Profile Test",() => {
     const registerStartTimestamp = currentTime + 2
     const registerEndTimestamp = currentTime + 10
     const redeemStartTimestamp = currentTime + 10
-    const redeemEndTimestamp = currentTime + 20
+    const redeemEndTimestamp = currentTime + 1000
 
 
     launchpadAddress = (await StarshipService.findLaunchpadAddress(launchpadName, PROGRAM_ID))[0]
@@ -141,6 +154,16 @@ describe("Profile Test",() => {
       PROGRAM_ID
     )
 
+    const [launchpadSignerAddress, ]: [PublicKey, number] = await StarshipService.findLaunchpadSignerAddress(launchpadAddress, PROGRAM_ID)
+
+    await VaultService.setVault(
+      connection,
+      defaultAccount,
+      vaultAddress,
+      [launchpadSignerAddress],
+      VAULT_PROGRAM_ID
+    )
+
     await StarshipService.createLocalProfile(
       connection,
       defaultAccount,
@@ -149,7 +172,7 @@ describe("Profile Test",() => {
       PROGRAM_ID
     )
 
-    const [userGlobalProfileAddress]: [PublicKey, number] = await StarshipService.findUserGlobalProfileAddress(defaultAccount.publicKey, PROGRAM_ID)
+    const [userGlobalProfileAddress]: [PublicKey, number] = await StarshipService.findUserGlobalProfileAddress(testAccount1.publicKey, PROGRAM_ID)
 
     if (await SolanaService.isAddressAvailable(connection, userGlobalProfileAddress)) {
       await StarshipService.createGlobalProfile(
@@ -169,15 +192,15 @@ describe("Profile Test",() => {
       1000000000
     )
 
-    const proofs = redemptiomTree.getProof(0).map(item => item.hash)
+    const proofs = redemptiomTree.getProof(0)
 
-    wait(2000)
+    await wait(2000)
 
     await StarshipService.register(
       connection,
       testAccount1,
       0,
-      proofs,
+      proofs.map(item => item.hash),
       launchpadAddress,
       PROGRAM_ID
     )
@@ -191,20 +214,18 @@ describe("Profile Test",() => {
       1000000000
     )
 
-    const proofs = redemptiomTree.getProof(0).map(item => item.hash)
+    const proofs = redemptiomTree.getProof(0)
 
-    wait(2000)
-
+    await wait(2000)
     await StarshipService.register(
       connection,
       testAccount1,
       0,
-      proofs,
+      proofs.map(item => item.hash),
       launchpadAddress,
       PROGRAM_ID
     )
 
-    wait(10000)
 
     const testAccount1Token1Address: PublicKey = await TokenProgramService.createAssociatedTokenAccount(
       connection,
@@ -213,9 +234,11 @@ describe("Profile Test",() => {
       token1Mint.publicKey,
     )
 
+    await wait(20000)
+
     await StarshipService.redeemBySol(
       connection,
-      defaultAccount,
+      testAccount1,
       launchpadAddress,
       testAccount1Token1Address,
       vaultAddress,

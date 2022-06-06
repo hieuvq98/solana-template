@@ -43,9 +43,11 @@ export class RedemptionTree{
     const proofs = [];
     let currentIndex = index;
     for (let i = 0; i < nodes.length - 1; i++) {
-      const proof = currentIndex % 2 == 0 ? nodes[i][currentIndex + 1] : nodes[i][currentIndex - 1];
+      const proof = currentIndex % 2 == 0
+        ? nodes[i][currentIndex + 1]
+        : nodes[i][currentIndex - 1];
       currentIndex = (currentIndex - (currentIndex % 2)) / 2;
-      proofs.push(proof)
+      proofs.push(proof);
     }
 
     return proofs;
@@ -54,5 +56,6 @@ export class RedemptionTree{
 }
 
 export async function wait(milliSeconds: number) {
+  console.log("Waiting:", milliSeconds)
   await new Promise(resolve => setTimeout(resolve, milliSeconds));
 }
