@@ -19,5 +19,3 @@ no-idl = []
 name = "starship"
 crate-type = ["cdylib", "lib"]
 
-[profile.release]
-overflow-checks = true

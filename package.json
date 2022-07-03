@@ -1,0 +1,51 @@
+{
+  "name": "@coin98/starship-js",
+  "version": "1.2.1",
+  "description": "",
+  "main": "services/index.js",
+  "types": "services/index.d.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coin98/coin98-starship.git"
+  },
+  "author": "Coin98",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/coin98/coin98-starship/issues"
+  },
+  "homepage": "https://github.com/coin98/coin98-starship#readme",
+  "scripts": {
+    "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
+    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
+    "maintain": "anchor test --skip-local-validator",
+    "test": "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/*.spec.ts",
+    "build:services": "tsc",
+    "build:program": "anchor build",
+    "build": "npm run build:services && npm run build:program",
+    "prerelease": "npm run test && npm run build && cp .npmrc dist",
+    "release": "standard-version && cp package.json dist && git push --follow-tags origin master && cd dist && npm publish"
+  },
+  "dependencies": {
+    "@coin98/solana-support-library": "^0.2.0",
+    "@coin98/vault-js": "^1.2.6",
+    "@project-serum/anchor": "^0.24.2",
+    "@project-serum/borsh": "^0.2.5",
+    "@solana/web3.js": "^1.43.2",
+    "crypto-js": "^4.1.1",
+    "keccak": "^3.0.2",
+    "moment": "^2.29.3",
+    "mz": "^2.7.0",
+    "yaml": "^2.1.0"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.1.0",
+    "@types/chai": "^4.3.0",
+    "@types/mocha": "^9.0.0",
+    "chai": "^4.3.4",
+    "mocha": "^9.0.3",
+    "prettier": "^2.6.2",
+    "standard-version": "^9.5.0",
+    "ts-mocha": "^8.0.0",
+    "typescript": "^4.3.5"
+  }
+}

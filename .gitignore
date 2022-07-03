@@ -2,10 +2,13 @@
 /.DS_Store
 /.anchor
 /build
-/dist
-/node_modules
 /shared_accounts/*.json
 /target
 Cargo.lock
 package-lock.json
 yarn.lock
+
+dist
+node_modules
+
+.npmrc
