@@ -37,6 +37,7 @@ mod coin98_starship {
     let launchpad = &mut ctx.accounts.launchpad;
 
     launchpad.nonce = signer_nonce;
+    launchpad.owner = *ctx.accounts.root.key;
 
     Ok(())
   }
@@ -719,10 +720,12 @@ pub struct Launchpad {
   pub register_end_timestamp: i64,
   pub redeem_start_timestamp: i64,
   pub redeem_end_timestamp: i64,
+  pub owner: Pubkey, // For compability reason
+  pub new_owner: Pubkey, // For compability reason
   pub is_active: bool,
 }
 impl Launchpad {
-  pub const LEN: usize = 16 + 1 + 8 + 8 + 8 + 8 + 16 + 16 + 16 + 16 + 16 + 16 + 16 + 16 + 1 + 36 + 8 + 8 + 8 + 8 + 8 + 8 + 1;
+  pub const LEN: usize = 16 + 1 + 8 + 8 + 8 + 8 + 16 + 16 + 16 + 16 + 16 + 16 + 16 + 16 + 1 + 36 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 1;
 }
 
 #[account]
