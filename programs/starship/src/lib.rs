@@ -1,22 +1,40 @@
-pub mod anchor_spl;
-pub mod anchor_sys_program;
-pub mod coin98_vault;
-pub mod constants;
+pub mod constant;
+pub mod context;
+pub mod error;
 pub mod shared;
-pub mod spl_token;
+pub mod state;
+pub mod external;
 
 use anchor_lang::prelude::*;
-use anchor_lang::{
-  solana_program::{
-    keccak::{
-      hash,
-    },
+use solana_program::{
+  keccak::{
+    hash,
   },
 };
 use std::{
   convert::{
     TryInto,
   },
+};
+use crate::error::{
+  ErrorCode,
+};
+use crate::constant::{
+  ROOT_KEYS,
+};
+use crate::context::*;
+use crate::state::{
+  Launchpad,
+  WhitelistParams,
+};
+use crate::external::anchor_spl_system::{
+  transfer_lamport,
+};
+use crate::external::anchor_spl_token::{
+  transfer_token,
+};
+use crate::external::coin98_vault::{
+  withdraw_token,
 };
 
 declare_id!("SS4VMP9wmqQdehu7Uc6g1Ymsx4BCVVghKp4wRmmy1jj");
@@ -202,15 +220,13 @@ mod coin98_starship {
     let amount_sol = shared::calculate_sub_total(amount, launchpad.price_in_sol_n, launchpad.price_in_sol_d)
       .unwrap();
     // Transfer lamports
-    let result = anchor_sys_program::transfer_lamports(
-      &user.to_account_info(),
-      &vault_signer.to_account_info(),
-      amount_sol,
-      &[]
-    );
-    if result.is_err() {
-      return Err(error!(ErrorCode::TransactionFailed));
-    }
+    transfer_lamport(
+        &user.to_account_info(),
+        &vault_signer.to_account_info(),
+        amount_sol,
+        &[]
+      )
+      .expect("Starship: CPI failed.");
 
     let local_profile = &mut ctx.accounts.local_profile;
 
@@ -222,21 +238,18 @@ mod coin98_starship {
     ];
 
     // Transfer token 1
-    let result = coin98_vault::withdraw_token(
-      &amount,
-      &launchpad_signer.to_account_info(),
-      &vault.to_account_info(),
-      &vault_signer.to_account_info(),
-      &vault_token1.to_account_info(),
-      &user_token1.to_account_info(),
-      &vault_program.to_account_info(),
-      &token_program.to_account_info(),
-      &[seeds],
-    );
-
-    if result.is_err() {
-      return Err(error!(ErrorCode::TransactionFailed));
-    }
+    withdraw_token(
+        &amount,
+        &launchpad_signer.to_account_info(),
+        &vault.to_account_info(),
+        &vault_signer.to_account_info(),
+        &vault_token1.to_account_info(),
+        &user_token1.to_account_info(),
+        &vault_program.to_account_info(),
+        &token_program.to_account_info(),
+        &[seeds],
+      )
+      .expect("Starship: CPI failed.");
 
     Ok(())
   }
@@ -283,17 +296,14 @@ mod coin98_starship {
       .unwrap();
 
     // Transfer token 0
-    let result = anchor_spl::transfer_token(
-      &user.to_account_info(),
-      &user_token0.to_account_info(),
-      &vault_token0.to_account_info(),
-      amount_token0,
-      &[]
-    );
-
-    if result.is_err() {
-      return Err(error!(ErrorCode::TransactionFailed));
-    }
+    transfer_token(
+        &user.to_account_info(),
+        &user_token0.to_account_info(),
+        &vault_token0.to_account_info(),
+        amount_token0,
+        &[]
+      )
+      .expect("Starship: CPI failed.");
 
     let local_profile = &mut ctx.accounts.local_profile;
 
@@ -306,21 +316,18 @@ mod coin98_starship {
     ];
 
     // Transfer token 1
-    let result = coin98_vault::withdraw_token(
-      &amount,
-      &launchpad_signer.to_account_info(),
-      &vault.to_account_info(),
-      &vault_signer.to_account_info(),
-      &vault_token1.to_account_info(),
-      &user_token1.to_account_info(),
-      &vault_program.to_account_info(),
-      &token_program.to_account_info(),
-      &[seeds],
-    );
-
-    if result.is_err() {
-      return Err(error!(ErrorCode::TransactionFailed));
-    }
+    withdraw_token(
+        &amount,
+        &launchpad_signer.to_account_info(),
+        &vault.to_account_info(),
+        &vault_signer.to_account_info(),
+        &vault_token1.to_account_info(),
+        &user_token1.to_account_info(),
+        &vault_program.to_account_info(),
+        &token_program.to_account_info(),
+        &[seeds],
+      )
+      .expect("Starship: CPI failed.");
 
     Ok(())
   }
@@ -374,445 +381,6 @@ mod coin98_starship {
   }
 }
 
-#[derive(Accounts)]
-#[instruction(launchpad_path: Vec<u8>, _launchpad_nonce: u8)]
-pub struct CreateLaunchpadContext<'info> {
-
-  /// CHECK: program owner, verified using #access_control
-  #[account(mut, signer)]
-  pub root: AccountInfo<'info>,
-
-  #[account(
-    init,
-    seeds = [
-      &[8, 201, 24, 140, 93, 100, 30, 148],
-      &*launchpad_path,
-    ],
-    bump,
-    payer = root,
-    space = Launchpad::LEN,
-  )]
-  pub launchpad: Account<'info, Launchpad>,
-
-  pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct SetLaunchpadContext<'info> {
-
-  /// CHECK: program owner, verified using #access_control
-  #[account(signer)]
-  pub root: AccountInfo<'info>,
-
-  #[account(mut)]
-  pub launchpad: Account<'info, Launchpad>,
-}
-
-#[derive(Accounts)]
-pub struct SetLaunchpadStatusContext<'info> {
-
-  /// CHECK: program owner, verified using #access_control
-  #[account(signer)]
-  pub root: AccountInfo<'info>,
-
-  #[account(mut)]
-  pub launchpad: Account<'info, Launchpad>,
-}
-
-#[derive(Accounts)]
-pub struct RegisterContext<'info> {
-
-  pub launchpad: Account<'info, Launchpad>,
-
-  /// CHECK: public user
-  #[account(signer)]
-  pub user: AccountInfo<'info>,
-
-  #[account(
-    seeds = [
-      &[139, 126, 195, 157, 204, 134, 142, 146],
-      &[32, 40, 118, 173, 164, 46, 192, 86],
-      user.key().as_ref(),
-    ],
-    bump = global_profile.nonce,
-    constraint = global_profile.user == user.key() @ErrorCode::InvalidAccount,
-  )]
-  pub global_profile: Account<'info, GlobalProfile>,
-
-  #[account(
-    mut,
-    seeds = [
-      &[133, 177, 201, 78, 13, 152, 198, 180],
-      launchpad.key().as_ref(),
-      user.key().as_ref(),
-    ],
-    bump = local_profile.nonce,
-    constraint = local_profile.launchpad == launchpad.key() @ErrorCode::InvalidAccount,
-    constraint = local_profile.user == user.key() @ErrorCode::InvalidAccount,
-  )]
-  pub local_profile: Account<'info, LocalProfile>,
-}
-
-#[derive(Accounts)]
-pub struct RedeemBySolContext<'info> {
-
-  pub launchpad: Account<'info, Launchpad>,
-
-  /// CHECK: PDA to authorize launchpad tx
-  #[account(
-    seeds = [
-      &[2, 151, 229, 53, 244,  77, 229,  7],
-      launchpad.key().as_ref(),
-    ],
-    bump = launchpad.nonce,
-  )]
-  pub launchpad_signer: AccountInfo<'info>,
-
-  /// CHECK: public user
-  #[account(signer)]
-  pub user: AccountInfo<'info>,
-
-  #[account(
-    seeds = [
-      &[139, 126, 195, 157, 204, 134, 142, 146],
-      &[32, 40, 118, 173, 164, 46, 192, 86],
-      user.key().as_ref(),
-    ],
-    bump = global_profile.nonce,
-    constraint = global_profile.user == user.key() @ErrorCode::InvalidAccount,
-  )]
-  pub global_profile: Box<Account<'info, GlobalProfile>>,
-
-  #[account(
-    mut,
-    seeds = [
-      &[133, 177, 201, 78, 13, 152, 198, 180],
-      launchpad.key().as_ref(),
-      user.key().as_ref(),
-    ],
-    bump = local_profile.nonce,
-    constraint = local_profile.launchpad == launchpad.key() @ErrorCode::InvalidAccount,
-    constraint = local_profile.user == user.key() @ErrorCode::InvalidAccount,
-  )]
-  pub local_profile: Box<Account<'info, LocalProfile>>,
-
-  /// CHECK: User token account to receive token sale
-  #[account(mut)]
-  pub user_token1: AccountInfo<'info>,
-
-  /// CHECK: Vault holding token for sale
-  #[account(
-    constraint = vault.key() == launchpad.vault @ErrorCode::InvalidAccount,
-  )]
-  pub vault: AccountInfo<'info>,
-
-  /// CHECK: PDA to hold vault asset
-  #[account(
-    mut,
-    constraint = vault_signer.key() == launchpad.vault_signer @ErrorCode::InvalidAccount,
-  )]
-  pub vault_signer: AccountInfo<'info>,
-
-  /// CHECK: Vault token account to send token sale
-  #[account(
-    mut,
-    constraint = vault_token1.key() == launchpad.vault_token1 @ErrorCode::InvalidAccount,
-  )]
-  pub vault_token1: AccountInfo<'info>,
-
-  /// CHECK: Vault holding token for sale
-  #[account(
-    constraint = vault_program.key() == launchpad.vault_program_id @ErrorCode::InvalidAccount,
-  )]
-  pub vault_program: AccountInfo<'info>,
-
-  pub system_program: Program<'info, System>,
-
-  /// CHECK: Solana native Token Program
-  #[account(
-    constraint = token_program.key() == launchpad.token_program_id @ErrorCode::InvalidAccount,
-  )]
-  pub token_program: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
-pub struct RedeemByTokenContext<'info> {
-
-  pub launchpad: Account<'info, Launchpad>,
-
-  /// CHECK: PDA to authorize launchpad tx
-  #[account(
-    seeds = [
-      &[2, 151, 229, 53, 244,  77, 229,  7],
-      launchpad.key().as_ref(),
-    ],
-    bump = launchpad.nonce,
-  )]
-  pub launchpad_signer: AccountInfo<'info>,
-
-  /// CHECK: public user
-  #[account(signer)]
-  pub user: AccountInfo<'info>,
-
-  #[account(
-    seeds = [
-      &[139, 126, 195, 157, 204, 134, 142, 146],
-      &[32, 40, 118, 173, 164, 46, 192, 86],
-      user.key().as_ref(),
-    ],
-    bump = global_profile.nonce,
-    constraint = global_profile.user == user.key() @ErrorCode::InvalidAccount,
-  )]
-  pub global_profile: Box<Account<'info, GlobalProfile>>,
-
-  #[account(
-    mut,
-    seeds = [
-      &[133, 177, 201, 78, 13, 152, 198, 180],
-      launchpad.key().as_ref(),
-      user.key().as_ref(),
-    ],
-    bump = local_profile.nonce,
-    constraint = local_profile.launchpad == launchpad.key() @ErrorCode::InvalidAccount,
-    constraint = local_profile.user == user.key() @ErrorCode::InvalidAccount,
-  )]
-  pub local_profile: Box<Account<'info, LocalProfile>>,
-
-  /// CHECK: User token account to buy token
-  #[account(mut)]
-  pub user_token0: AccountInfo<'info>,
-
-  /// CHECK: User token account to receive token sale
-  #[account(mut)]
-  pub user_token1: AccountInfo<'info>,
-
-  /// CHECK: Vault holding token for sale
-  #[account(
-    constraint = vault.key() == launchpad.vault @ErrorCode::InvalidAccount,
-  )]
-  pub vault: AccountInfo<'info>,
-
-  /// CHECK: PDA to hold vault asset
-  #[account(
-    mut,
-    constraint = vault_signer.key() == launchpad.vault_signer @ErrorCode::InvalidAccount,
-  )]
-  pub vault_signer: AccountInfo<'info>,
-
-  /// CHECK: Vault token account to receive token
-  #[account(
-    mut,
-    constraint = vault_token0.key() == launchpad.vault_token0 @ErrorCode::InvalidAccount,
-  )]
-  pub vault_token0: AccountInfo<'info>,
-
-  /// CHECK: Vault token account to send token sale
-  #[account(
-    mut,
-    constraint = vault_token1.key() == launchpad.vault_token1 @ErrorCode::InvalidAccount,
-  )]
-  pub vault_token1: AccountInfo<'info>,
-
-  /// CHECK: Vault holding token for sale
-  #[account(
-    constraint = vault_program.key() == launchpad.vault_program_id @ErrorCode::InvalidAccount,
-  )]
-  pub vault_program: AccountInfo<'info>,
-
-  /// CHECK: Solana native Token Program
-  #[account(
-    constraint = token_program.key() == launchpad.token_program_id @ErrorCode::InvalidAccount,
-  )]
-  pub token_program: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
-#[instruction(user: Pubkey)]
-pub struct SetBlacklistContext<'info> {
-
-  /// CHECK: program owner, verified using #access_control
-  #[account(signer)]
-  pub root: AccountInfo<'info>,
-
-  #[account(
-    mut,
-    seeds = [
-      &[139, 126, 195, 157, 204, 134, 142, 146],
-      &[32, 40, 118, 173, 164, 46, 192, 86],
-      user.as_ref(),
-    ],
-    bump = global_profile.nonce,
-    constraint = global_profile.user == user @ErrorCode::InvalidAccount,
-  )]
-  pub global_profile: Account<'info, GlobalProfile>,
-}
-
-#[derive(Accounts)]
-#[instruction(_profile_nonce: u8, user: Pubkey)]
-pub struct CreateGlobalProfileContext<'info> {
-
-  /// CHECK: Fee payer
-  #[account(mut, signer)]
-  pub payer: AccountInfo<'info>,
-
-  #[account(
-    init,
-    seeds = [
-      &[139, 126, 195, 157, 204, 134, 142, 146],
-      &[32, 40, 118, 173, 164, 46, 192, 86],
-      user.as_ref(),
-    ],
-    bump,
-    payer = payer,
-    space = GlobalProfile::LEN,
-  )]
-  pub global_profile: Account<'info, GlobalProfile>,
-
-  pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-#[instruction(_profile_nonce: u8, user: Pubkey)]
-pub struct CreateLocalProfileContext<'info> {
-
-  /// CHECK: Fee payer
-  #[account(mut, signer)]
-  pub payer: AccountInfo<'info>,
-
-  pub launchpad: Account<'info, Launchpad>,
-
-  #[account(
-    init,
-    seeds = [
-      &[133, 177, 201, 78, 13, 152, 198, 180],
-      launchpad.key().as_ref(),
-      user.as_ref(),
-    ],
-    bump,
-    payer = payer,
-    space = LocalProfile::LEN,
-  )]
-  pub local_profile: Account<'info, LocalProfile>,
-
-  pub system_program: Program<'info, System>,
-}
-
-#[account]
-pub struct Launchpad {
-  pub nonce: u8,
-  pub price_in_sol_n: u64,
-  pub price_in_sol_d: u64,
-  pub price_in_token_n: u64,
-  pub price_in_token_d: u64,
-  pub token_program_id: Pubkey,
-  pub token0_mint: Pubkey,
-  pub token1_mint: Pubkey,
-  pub vault_program_id: Pubkey,
-  pub vault: Pubkey,
-  pub vault_signer: Pubkey,
-  pub vault_token0: Pubkey,
-  pub vault_token1: Pubkey,
-  pub is_private_sale: bool,
-  pub private_sale_signature: Vec<u8>,
-  pub min_per_tx: u64,
-  pub max_per_user: u64,
-  pub register_start_timestamp: i64,
-  pub register_end_timestamp: i64,
-  pub redeem_start_timestamp: i64,
-  pub redeem_end_timestamp: i64,
-  pub owner: Pubkey, // For compability reason
-  pub new_owner: Pubkey, // For compability reason
-  pub is_active: bool,
-}
-impl Launchpad {
-  pub const LEN: usize = 16 + 1 + 8 + 8 + 8 + 8 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 1 + 36 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 1;
-}
-
-#[account]
-pub struct GlobalProfile {
-  pub nonce: u8,
-  pub user: Pubkey,
-  pub is_blacklisted: bool,
-}
-impl GlobalProfile {
-  pub const LEN: usize = 16 + 1 + 32 + 1;
-}
-
-#[account]
-pub struct LocalProfile {
-  pub nonce: u8,
-  pub launchpad: Pubkey,
-  pub user: Pubkey,
-  pub is_registered: bool,
-  pub redeemed_token: u64,
-}
-impl LocalProfile {
-  pub const LEN: usize = 16 + 1 + 32 + 32 + 1 + 8;
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Default)]
-pub struct TransferTokenParams {
-  pub amount: u64,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Default)]
-pub struct WhitelistParams {
-  pub index: u32,
-  pub address: Pubkey,
-}
-
-#[error_code]
-pub enum ErrorCode {
-
-  #[msg("Coin98Starship: Forbidden.")]
-  Blacklisted,
-
-  #[msg("Coin98Starship: Time must be set in the future.")]
-  FutureTimeRequired,
-
-  #[msg("Coin98Starship: Invalid account.")]
-  InvalidAccount,
-
-  #[msg("Coin98Starship: Not an owner.")]
-  InvalidOwner,
-
-  #[msg("Coin98Starship: Invalid registration time range.")]
-  InvalidRegistrationTime,
-
-  #[msg("Coin98Starship: Invalid sale time range.")]
-  InvalidSaleTime,
-
-  #[msg("Coin98Starship: Max amount reached")]
-  MaxAmountReached,
-
-  #[msg("Coin98Starship: Min amount not satisfied.")]
-  MinAmountNotSatisfied,
-
-  #[msg("Coin98Starship: Only allowed during registration time.")]
-  NotInRegistrationTime,
-
-  #[msg("Coin98Starship: Only allowed during sale time.")]
-  NotInSaleTime,
-
-  #[msg("Coin98Starship: Not registered.")]
-  NotRegistered,
-
-  #[msg("Coin98Starship: Not allowed.")]
-  NotWhitelisted,
-
-  #[msg("Coin98Starship: Registration and sale time overlap.")]
-  RegistrationAndSaleTimeOverlap,
-
-  #[msg("Coin98Starship: Redeem by SOL not allowed.")]
-  RedeemBySolNotAllowed,
-
-  #[msg("Coin98Starship: Redeem by token not allowed.")]
-  RedeemByTokenNotAllowed,
-
-  #[msg("Coin98Starship: Transaction failed.")]
-  TransactionFailed,
-}
-
 /// Verify proof
 pub fn verify_proof(index: u32, user: &Pubkey, proofs: &Vec<[u8; 32]>, launchpad: &Launchpad) -> Result<()> {
   let whitelist_params = WhitelistParams {
@@ -831,7 +399,7 @@ pub fn verify_proof(index: u32, user: &Pubkey, proofs: &Vec<[u8; 32]>, launchpad
 
 pub fn verify_root(user: Pubkey) -> Result<()> {
   let user_key = user.to_string();
-  let result = constants::ROOT_KEYS.iter().position(|&key| key == &user_key[..]);
+  let result = ROOT_KEYS.iter().position(|&key| key == &user_key[..]);
   if result == None {
     return Err(ErrorCode::InvalidOwner.into());
   }

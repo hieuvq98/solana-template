@@ -11,8 +11,8 @@ use solana_program::{
     ProgramError,
   },
 };
-use crate::{
-  spl_token,
+use crate::external::spl_token::{
+  ID as TOKEN_PROGRAM_ID,
 };
 
 pub fn withdraw_token<'info>(
@@ -41,7 +41,7 @@ pub fn withdraw_token<'info>(
       solana_program::instruction::AccountMeta::new_readonly(*vault_signer.key, false),
       solana_program::instruction::AccountMeta::new(*vault_token.key, false),
       solana_program::instruction::AccountMeta::new(*user_token.key, false),
-      solana_program::instruction::AccountMeta::new_readonly(spl_token::ID, false),
+      solana_program::instruction::AccountMeta::new_readonly(TOKEN_PROGRAM_ID, false),
     ],
     data: withdraw_data,
   };
