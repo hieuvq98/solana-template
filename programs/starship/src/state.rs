@@ -3,11 +3,11 @@ use anchor_lang::prelude::*;
 #[account]
 pub struct Launchpad {
   pub nonce: u8,
+  pub signer_nonce: u8,
   pub price_in_sol_n: u64,
   pub price_in_sol_d: u64,
   pub price_in_token_n: u64,
   pub price_in_token_d: u64,
-  pub token_program_id: Pubkey,
   pub token0_mint: Pubkey,
   pub token1_mint: Pubkey,
   pub vault_program_id: Pubkey,
@@ -28,7 +28,7 @@ pub struct Launchpad {
   pub is_active: bool,
 }
 impl Launchpad {
-  pub const LEN: usize = 16 + 1 + 8 + 8 + 8 + 8 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 1 + 36 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 1;
+  pub const LEN: usize = 1 + 1 + 8 + 8 + 8 + 8 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 1 + 36 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 1;
 }
 
 #[account]
@@ -38,7 +38,7 @@ pub struct GlobalProfile {
   pub is_blacklisted: bool,
 }
 impl GlobalProfile {
-  pub const LEN: usize = 16 + 1 + 32 + 1;
+  pub const LEN: usize = 1 + 32 + 1;
 }
 
 #[account]
@@ -50,7 +50,7 @@ pub struct LocalProfile {
   pub redeemed_token: u64,
 }
 impl LocalProfile {
-  pub const LEN: usize = 16 + 1 + 32 + 32 + 1 + 8;
+  pub const LEN: usize = 1 + 32 + 32 + 1 + 8;
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Default)]

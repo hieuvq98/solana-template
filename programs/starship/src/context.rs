@@ -1,5 +1,12 @@
 use anchor_lang::prelude::*;
 
+use crate::constant::{
+  GLOBAL_PROFILE_SEED_1,
+  GLOBAL_PROFILE_SEED_2,
+  LAUNCHPAD_SEED_1,
+  LOCAL_PROFILE_SEED_1,
+  SIGNER_SEED_1,
+};
 use crate::error::{
   ErrorCode,
 };
@@ -8,24 +15,27 @@ use crate::state::{
   Launchpad,
   LocalProfile,
 };
+use crate::external::spl_token::{
+  is_token_program,
+};
 
 #[derive(Accounts)]
 #[instruction(launchpad_path: Vec<u8>, _launchpad_nonce: u8)]
 pub struct CreateLaunchpadContext<'info> {
 
   /// CHECK: program owner, verified using #access_control
-  #[account(mut, signer)]
-  pub root: AccountInfo<'info>,
+  #[account(mut)]
+  pub root: Signer<'info>,
 
   #[account(
     init,
     seeds = [
-      &[8, 201, 24, 140, 93, 100, 30, 148],
+      &LAUNCHPAD_SEED_1,
       &*launchpad_path,
     ],
     bump,
     payer = root,
-    space = Launchpad::LEN,
+    space = 16 + Launchpad::LEN,
   )]
   pub launchpad: Account<'info, Launchpad>,
 
@@ -36,8 +46,7 @@ pub struct CreateLaunchpadContext<'info> {
 pub struct SetLaunchpadContext<'info> {
 
   /// CHECK: program owner, verified using #access_control
-  #[account(signer)]
-  pub root: AccountInfo<'info>,
+  pub root: Signer<'info>,
 
   #[account(mut)]
   pub launchpad: Account<'info, Launchpad>,
@@ -47,8 +56,7 @@ pub struct SetLaunchpadContext<'info> {
 pub struct SetLaunchpadStatusContext<'info> {
 
   /// CHECK: program owner, verified using #access_control
-  #[account(signer)]
-  pub root: AccountInfo<'info>,
+  pub root: Signer<'info>,
 
   #[account(mut)]
   pub launchpad: Account<'info, Launchpad>,
@@ -60,13 +68,12 @@ pub struct RegisterContext<'info> {
   pub launchpad: Account<'info, Launchpad>,
 
   /// CHECK: public user
-  #[account(signer)]
-  pub user: AccountInfo<'info>,
+  pub user: Signer<'info>,
 
   #[account(
     seeds = [
-      &[139, 126, 195, 157, 204, 134, 142, 146],
-      &[32, 40, 118, 173, 164, 46, 192, 86],
+      &GLOBAL_PROFILE_SEED_1,
+      &GLOBAL_PROFILE_SEED_2,
       user.key().as_ref(),
     ],
     bump = global_profile.nonce,
@@ -77,7 +84,7 @@ pub struct RegisterContext<'info> {
   #[account(
     mut,
     seeds = [
-      &[133, 177, 201, 78, 13, 152, 198, 180],
+      &LOCAL_PROFILE_SEED_1,
       launchpad.key().as_ref(),
       user.key().as_ref(),
     ],
@@ -96,10 +103,10 @@ pub struct RedeemBySolContext<'info> {
   /// CHECK: PDA to authorize launchpad tx
   #[account(
     seeds = [
-      &[2, 151, 229, 53, 244,  77, 229,  7],
+      &SIGNER_SEED_1,
       launchpad.key().as_ref(),
     ],
-    bump = launchpad.nonce,
+    bump = launchpad.signer_nonce,
   )]
   pub launchpad_signer: AccountInfo<'info>,
 
@@ -109,8 +116,8 @@ pub struct RedeemBySolContext<'info> {
 
   #[account(
     seeds = [
-      &[139, 126, 195, 157, 204, 134, 142, 146],
-      &[32, 40, 118, 173, 164, 46, 192, 86],
+      &GLOBAL_PROFILE_SEED_1,
+      &GLOBAL_PROFILE_SEED_2,
       user.key().as_ref(),
     ],
     bump = global_profile.nonce,
@@ -121,7 +128,7 @@ pub struct RedeemBySolContext<'info> {
   #[account(
     mut,
     seeds = [
-      &[133, 177, 201, 78, 13, 152, 198, 180],
+      &LOCAL_PROFILE_SEED_1,
       launchpad.key().as_ref(),
       user.key().as_ref(),
     ],
@@ -165,7 +172,7 @@ pub struct RedeemBySolContext<'info> {
 
   /// CHECK: Solana native Token Program
   #[account(
-    constraint = token_program.key() == launchpad.token_program_id @ErrorCode::InvalidAccount,
+    constraint = is_token_program(&token_program) @ErrorCode::InvalidAccount,
   )]
   pub token_program: AccountInfo<'info>,
 }
@@ -178,21 +185,20 @@ pub struct RedeemByTokenContext<'info> {
   /// CHECK: PDA to authorize launchpad tx
   #[account(
     seeds = [
-      &[2, 151, 229, 53, 244,  77, 229,  7],
+      &SIGNER_SEED_1,
       launchpad.key().as_ref(),
     ],
-    bump = launchpad.nonce,
+    bump = launchpad.signer_nonce,
   )]
   pub launchpad_signer: AccountInfo<'info>,
 
   /// CHECK: public user
-  #[account(signer)]
-  pub user: AccountInfo<'info>,
+  pub user: Signer<'info>,
 
   #[account(
     seeds = [
-      &[139, 126, 195, 157, 204, 134, 142, 146],
-      &[32, 40, 118, 173, 164, 46, 192, 86],
+      &GLOBAL_PROFILE_SEED_1,
+      &GLOBAL_PROFILE_SEED_2,
       user.key().as_ref(),
     ],
     bump = global_profile.nonce,
@@ -203,7 +209,7 @@ pub struct RedeemByTokenContext<'info> {
   #[account(
     mut,
     seeds = [
-      &[133, 177, 201, 78, 13, 152, 198, 180],
+      &LOCAL_PROFILE_SEED_1,
       launchpad.key().as_ref(),
       user.key().as_ref(),
     ],
@@ -256,7 +262,7 @@ pub struct RedeemByTokenContext<'info> {
 
   /// CHECK: Solana native Token Program
   #[account(
-    constraint = token_program.key() == launchpad.token_program_id @ErrorCode::InvalidAccount,
+    constraint = is_token_program(&token_program) @ErrorCode::InvalidAccount,
   )]
   pub token_program: AccountInfo<'info>,
 }
@@ -272,8 +278,8 @@ pub struct SetBlacklistContext<'info> {
   #[account(
     mut,
     seeds = [
-      &[139, 126, 195, 157, 204, 134, 142, 146],
-      &[32, 40, 118, 173, 164, 46, 192, 86],
+      &GLOBAL_PROFILE_SEED_1,
+      &GLOBAL_PROFILE_SEED_2,
       user.as_ref(),
     ],
     bump = global_profile.nonce,
@@ -287,19 +293,19 @@ pub struct SetBlacklistContext<'info> {
 pub struct CreateGlobalProfileContext<'info> {
 
   /// CHECK: Fee payer
-  #[account(mut, signer)]
-  pub payer: AccountInfo<'info>,
+  #[account(mut)]
+  pub payer: Signer<'info>,
 
   #[account(
     init,
     seeds = [
-      &[139, 126, 195, 157, 204, 134, 142, 146],
-      &[32, 40, 118, 173, 164, 46, 192, 86],
+      &GLOBAL_PROFILE_SEED_1,
+      &GLOBAL_PROFILE_SEED_2,
       user.as_ref(),
     ],
     bump,
     payer = payer,
-    space = GlobalProfile::LEN,
+    space = 16 + GlobalProfile::LEN,
   )]
   pub global_profile: Account<'info, GlobalProfile>,
 
@@ -311,21 +317,21 @@ pub struct CreateGlobalProfileContext<'info> {
 pub struct CreateLocalProfileContext<'info> {
 
   /// CHECK: Fee payer
-  #[account(mut, signer)]
-  pub payer: AccountInfo<'info>,
+  #[account(mut)]
+  pub payer: Signer<'info>,
 
   pub launchpad: Account<'info, Launchpad>,
 
   #[account(
     init,
     seeds = [
-      &[133, 177, 201, 78, 13, 152, 198, 180],
+      &LOCAL_PROFILE_SEED_1,
       launchpad.key().as_ref(),
       user.as_ref(),
     ],
     bump,
     payer = payer,
-    space = LocalProfile::LEN,
+    space = 16 + LocalProfile::LEN,
   )]
   pub local_profile: Account<'info, LocalProfile>,
 

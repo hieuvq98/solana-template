@@ -21,10 +21,10 @@ use crate::error::{
 };
 use crate::constant::{
   ROOT_KEYS,
+  SIGNER_SEED_1,
 };
 use crate::context::*;
 use crate::state::{
-  Launchpad,
   WhitelistParams,
 };
 use crate::external::anchor_spl_system::{
@@ -47,14 +47,19 @@ mod coin98_starship {
   pub fn create_launchpad(
     ctx: Context<CreateLaunchpadContext>,
     _launchpad_path: Vec<u8>,
-    _launchpad_nonce: u8,
-    signer_nonce: u8,
   ) -> Result<()> {
-    msg!("Coin98Starship: Instruction_CreateLaunchpad");
 
     let launchpad = &mut ctx.accounts.launchpad;
 
-    launchpad.nonce = signer_nonce;
+    launchpad.nonce = *ctx.bumps.get("launchpad").unwrap();
+    let (_, signer_nonce) = Pubkey::find_program_address(
+      &[
+        &SIGNER_SEED_1,
+        &launchpad.key().to_bytes(),
+      ],
+      ctx.program_id,
+    );
+    launchpad.signer_nonce = signer_nonce;
     launchpad.owner = *ctx.accounts.root.key;
 
     Ok(())
@@ -67,7 +72,6 @@ mod coin98_starship {
     price_in_sol_d: u64,
     price_in_token_n: u64,
     price_in_token_d: u64,
-    token_program_id: Pubkey,
     token0_mint: Pubkey,
     token1_mint: Pubkey,
     vault_program_id: Pubkey,
@@ -84,22 +88,13 @@ mod coin98_starship {
     redeem_start_timestamp: i64,
     redeem_end_timestamp: i64,
   ) -> Result<()> {
-    msg!("Coin98Starship: Instruction_SetLaunchpad");
 
     let clock = Clock::get().unwrap();
 
-    if register_start_timestamp > register_end_timestamp {
-      return Err(error!(ErrorCode::InvalidRegistrationTime));
-    }
-    if clock.unix_timestamp > register_start_timestamp {
-      return Err(error!(ErrorCode::FutureTimeRequired));
-    }
-    if redeem_start_timestamp > redeem_end_timestamp {
-      return Err(error!(ErrorCode::InvalidSaleTime));
-    }
-    if redeem_start_timestamp < register_end_timestamp {
-      return Err(error!(ErrorCode::RegistrationAndSaleTimeOverlap));
-    }
+    require!(register_start_timestamp < register_end_timestamp, ErrorCode::InvalidInput);
+    require!(clock.unix_timestamp < register_start_timestamp, ErrorCode::InvalidInput);
+    require!(redeem_start_timestamp < redeem_end_timestamp, ErrorCode::InvalidInput);
+    require!(register_end_timestamp < redeem_start_timestamp, ErrorCode::TimeOverlap);
 
     let launchpad = &mut ctx.accounts.launchpad;
 
@@ -107,7 +102,6 @@ mod coin98_starship {
     launchpad.price_in_sol_d = price_in_sol_d;
     launchpad.price_in_token_n = price_in_token_n;
     launchpad.price_in_token_d = price_in_token_d;
-    launchpad.token_program_id = token_program_id;
     launchpad.token0_mint = token0_mint;
     launchpad.token1_mint = token1_mint;
     launchpad.vault_program_id = vault_program_id;
@@ -132,7 +126,6 @@ mod coin98_starship {
     ctx: Context<SetLaunchpadStatusContext>,
     is_active: bool,
   ) -> Result<()> {
-    msg!("Coin98Starship: Instruction_SetLaunchpadStatus");
 
     let launchpad = &mut ctx.accounts.launchpad;
 
@@ -146,19 +139,17 @@ mod coin98_starship {
     index: u32,
     proofs: Vec<[u8; 32]>,
   ) -> Result<()> {
-    msg!("Coin98Starship: Instruction_Register");
 
     let user = &ctx.accounts.user;
     let launchpad = &ctx.accounts.launchpad;
     let global_profile = &ctx.accounts.global_profile;
     let clock = Clock::get().unwrap();
 
-    if global_profile.is_blacklisted {
-      return Err(error!(ErrorCode::Blacklisted));
-    }
-    if clock.unix_timestamp < launchpad.register_start_timestamp || clock.unix_timestamp > launchpad.register_end_timestamp {
-      return Err(error!(ErrorCode::NotInRegistrationTime));
-    }
+    require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
+    require!(
+      clock.unix_timestamp >= launchpad.register_start_timestamp && clock.unix_timestamp <= launchpad.register_end_timestamp,
+      ErrorCode::NotInTimeframe,
+    );
     if launchpad.is_private_sale {
       let whitelist = WhitelistParams {
         index: index,
@@ -167,9 +158,8 @@ mod coin98_starship {
       let whitelist_data = whitelist.try_to_vec().unwrap();
       let leaf = hash(&whitelist_data[..]);
       let root: [u8; 32] = launchpad.private_sale_signature.clone().try_into().unwrap();
-      if !shared::verify_proof(proofs, root, leaf.to_bytes()) {
-        return Err(error!(ErrorCode::NotWhitelisted));
-      }
+      let is_valid_proof = shared::verify_proof(proofs, root, leaf.to_bytes());
+      require!(is_valid_proof, ErrorCode::Unauthorized);
     }
 
     let local_profile = &mut ctx.accounts.local_profile;
@@ -182,7 +172,6 @@ mod coin98_starship {
     ctx: Context<RedeemBySolContext>,
     amount: u64,
   ) -> Result<()> {
-    msg!("Coin98Starship: Instruction_RedeemBySOL");
 
     let user = &ctx.accounts.user;
     let launchpad = &ctx.accounts.launchpad;
@@ -197,25 +186,22 @@ mod coin98_starship {
     let vault_program = &ctx.accounts.vault_program;
     let token_program = &ctx.accounts.token_program;
 
-    if global_profile.is_blacklisted {
-      return Err(error!(ErrorCode::Blacklisted));
-    }
-    if launchpad.price_in_sol_n == 0u64 {
-      return Err(error!(ErrorCode::RedeemBySolNotAllowed));
-    }
-    if !local_profile.is_registered {
-      return Err(error!(ErrorCode::NotRegistered));
-    }
-    if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
-      return Err(error!(ErrorCode::NotInSaleTime));
-    }
-    if launchpad.min_per_tx > 0 && amount < launchpad.min_per_tx {
-      return Err(error!(ErrorCode::MinAmountNotSatisfied));
-    }
+    require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
+    require!(launchpad.price_in_sol_n > 0u64, ErrorCode::NotAllowed);
+    require!(local_profile.is_registered, ErrorCode::Unauthorized);
+    require!(
+      clock.unix_timestamp >= launchpad.redeem_start_timestamp && clock.unix_timestamp <= launchpad.redeem_end_timestamp,
+      ErrorCode::NotInTimeframe,
+    );
+    require!(
+      launchpad.min_per_tx == 0u64 || amount >= launchpad.min_per_tx,
+      ErrorCode::MinAmountNotSatisfied,
+    );
     let redeemed_amount = local_profile.redeemed_token.checked_add(amount).unwrap();
-    if launchpad.max_per_user > 0 && redeemed_amount > launchpad.max_per_user {
-      return Err(error!(ErrorCode::MaxAmountReached));
-    }
+    require!(
+      launchpad.max_per_user == 0u64 || redeemed_amount <= launchpad.max_per_user,
+      ErrorCode::MaxAmountReached,
+    );
 
     let amount_sol = shared::calculate_sub_total(amount, launchpad.price_in_sol_n, launchpad.price_in_sol_d)
       .unwrap();
@@ -232,9 +218,9 @@ mod coin98_starship {
 
     local_profile.redeemed_token = redeemed_amount;
     let seeds: &[&[_]] = &[
-      &[2, 151, 229, 53, 244,  77, 229,  7],
+      &SIGNER_SEED_1,
       launchpad.to_account_info().key.as_ref(),
-      &[launchpad.nonce],
+      &[launchpad.signer_nonce],
     ];
 
     // Transfer token 1
@@ -258,7 +244,6 @@ mod coin98_starship {
     ctx: Context<RedeemByTokenContext>,
     amount: u64,
   ) -> Result<()> {
-    msg!("Coin98Starship: Instruction_RedeemByToken");
 
     let user = &ctx.accounts.user;
     let launchpad = &ctx.accounts.launchpad;
@@ -275,22 +260,22 @@ mod coin98_starship {
     let vault_program = &ctx.accounts.vault_program;
     let token_program = &ctx.accounts.token_program;
 
-    if global_profile.is_blacklisted {
-      return Err(error!(ErrorCode::Blacklisted));
-    }
-    if launchpad.price_in_token_n == 0u64 {
-      return Err(error!(ErrorCode::RedeemByTokenNotAllowed));
-    }
-    if clock.unix_timestamp < launchpad.redeem_start_timestamp || clock.unix_timestamp > launchpad.redeem_end_timestamp {
-      return Err(error!(ErrorCode::NotInSaleTime));
-    }
-    if launchpad.min_per_tx > 0 && amount < launchpad.min_per_tx {
-      return Err(error!(ErrorCode::MinAmountNotSatisfied));
-    }
+    require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
+    require!(launchpad.price_in_token_n > 0u64, ErrorCode::NotAllowed);
+    require!(local_profile.is_registered, ErrorCode::Unauthorized);
+    require!(
+      clock.unix_timestamp >= launchpad.redeem_start_timestamp && clock.unix_timestamp <= launchpad.redeem_end_timestamp,
+      ErrorCode::NotInTimeframe,
+    );
+    require!(
+      launchpad.min_per_tx == 0u64 || amount >= launchpad.min_per_tx,
+      ErrorCode::MinAmountNotSatisfied,
+    );
     let redeemed_amount = local_profile.redeemed_token.checked_add(amount).unwrap();
-    if launchpad.max_per_user > 0 && redeemed_amount > launchpad.max_per_user {
-      return Err(error!(ErrorCode::MaxAmountReached));
-    }
+    require!(
+      launchpad.max_per_user == 0u64 || redeemed_amount <= launchpad.max_per_user,
+      ErrorCode::MaxAmountReached,
+    );
 
     let amount_token0 = shared::calculate_sub_total(amount, launchpad.price_in_token_n, launchpad.price_in_token_d)
       .unwrap();
@@ -310,9 +295,9 @@ mod coin98_starship {
     local_profile.redeemed_token = redeemed_amount;
 
     let seeds: &[&[_]] = &[
-      &[2, 151, 229, 53, 244,  77, 229,  7],
+      &SIGNER_SEED_1,
       launchpad.to_account_info().key.as_ref(),
-      &[launchpad.nonce],
+      &[launchpad.signer_nonce],
     ];
 
     // Transfer token 1
@@ -338,7 +323,6 @@ mod coin98_starship {
     _user: Pubkey,
     is_blacklisted: bool,
   ) -> Result<()> {
-    msg!("Coin98Starship: Instruction_SetBlacklist");
 
     let profile = &mut ctx.accounts.global_profile;
 
@@ -349,14 +333,12 @@ mod coin98_starship {
 
   pub fn create_global_profile(
     ctx: Context<CreateGlobalProfileContext>,
-    nonce: u8,
     user: Pubkey,
   ) -> Result<()> {
-    msg!("Coin98Starship: Instruction_CreateGlobalProfile");
 
     let profile = &mut ctx.accounts.global_profile;
 
-    profile.nonce = nonce;
+    profile.nonce = *ctx.bumps.get("global_profile").unwrap();
     profile.user = user;
 
     Ok(())
@@ -364,16 +346,14 @@ mod coin98_starship {
 
   pub fn create_local_profile(
     ctx: Context<CreateLocalProfileContext>,
-    nonce: u8,
     user: Pubkey,
   ) -> Result<()> {
-    msg!("Coin98Starship: Instruction_CreateLocalProfile");
 
     let launchpad = &ctx.accounts.launchpad;
 
     let profile = &mut ctx.accounts.local_profile;
 
-    profile.nonce = nonce;
+    profile.nonce = *ctx.bumps.get("local_profile").unwrap();
     profile.launchpad = launchpad.key();
     profile.user = user;
 
@@ -381,27 +361,11 @@ mod coin98_starship {
   }
 }
 
-/// Verify proof
-pub fn verify_proof(index: u32, user: &Pubkey, proofs: &Vec<[u8; 32]>, launchpad: &Launchpad) -> Result<()> {
-  let whitelist_params = WhitelistParams {
-    index: index,
-    address: *user,
-  };
-  let whitelist_data = whitelist_params.try_to_vec().unwrap();
-  let root: [u8; 32] = launchpad.private_sale_signature.clone().try_into().unwrap();
-  let leaf = hash(&whitelist_data[..]);
-  if !shared::verify_proof(proofs.to_vec(), root, leaf.to_bytes()) {
-    return Err(ErrorCode::NotWhitelisted.into());
-  }
-
-  Ok(())
-}
-
 pub fn verify_root(user: Pubkey) -> Result<()> {
   let user_key = user.to_string();
   let result = ROOT_KEYS.iter().position(|&key| key == &user_key[..]);
   if result == None {
-    return Err(ErrorCode::InvalidOwner.into());
+    return Err(ErrorCode::Unauthorized.into());
   }
 
   Ok(())
