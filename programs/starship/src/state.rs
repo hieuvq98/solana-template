@@ -27,6 +27,8 @@ impl Launchpad {
 pub struct LaunchpadPurchase {
   pub nonce: u8,
   pub limit_sale: u64,
+  pub price_n: u64,
+  pub price_d: u64,
   pub min_per_tx: u64,
   pub max_per_user: u64,
   pub launchpad: Pubkey,
@@ -34,7 +36,7 @@ pub struct LaunchpadPurchase {
 }
 
 impl LaunchpadPurchase {
-  pub const LEN: usize = 1 + 1 + 8 + 8 + 8 + 32 + 32;
+  pub const LEN: usize = 1 + 1 + 8 + 8 + 8 + 8 + 8 + 32 + 32;
 }
 
 #[account]

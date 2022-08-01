@@ -17,7 +17,6 @@ use crate::context::*;
 use crate::state::WhitelistParams;
 use crate::external::anchor_spl_system::transfer_lamport;
 use crate::external::anchor_spl_token::transfer_token;
-use crate::external::coin98_vault::withdraw_token;
 
 declare_id!("SS4VMP9wmqQdehu7Uc6g1Ymsx4BCVVghKp4wRmmy1jj");
 
@@ -109,12 +108,16 @@ mod coin98_starship {
   pub fn set_launchpad_purchase(
     ctx: Context<SetLaunchPadPurchaseContext>,
     limit_sale: u64,
+    price_n: u64,
+    price_d: u64,
     min_per_tx: u64,
     max_per_user: u64
   ) -> Result<()> {
     let launchpad_purchase = &mut ctx.accounts.launchpad_purchase;
 
     launchpad_purchase.limit_sale = limit_sale;
+    launchpad_purchase.price_n = price_n;
+    launchpad_purchase.price_d = price_d;
     launchpad_purchase.min_per_tx = min_per_tx;
     launchpad_purchase.max_per_user = max_per_user;
 
@@ -126,11 +129,9 @@ mod coin98_starship {
     ctx: Context<SetLaunchpadStatusContext>,
     is_active: bool,
   ) -> Result<()> {
-
     let launchpad = &mut ctx.accounts.launchpad;
 
     launchpad.is_active = is_active;
-
     Ok(())
   }
 
@@ -150,7 +151,7 @@ mod coin98_starship {
       clock.unix_timestamp >= launchpad.register_start_timestamp && clock.unix_timestamp <= launchpad.register_end_timestamp,
       ErrorCode::NotInTimeframe,
     );
-    if let Some(root) = launchpad.private_sale_root {
+    if let Some(root) = &launchpad.private_sale_root {
       let whitelist = WhitelistParams {
         index,
         address: *user.key
@@ -176,14 +177,65 @@ mod coin98_starship {
     let launchpad = &ctx.accounts.launchpad;
     let launchpad_signer = &ctx.accounts.launchpad_signer;
     let global_profile = &ctx.accounts.global_profile;
-    let local_profile = &ctx.accounts.local_profile;
-    let user_token1 = &ctx.accounts.user_token1;
-    let vault = &ctx.accounts.vault;
-    let vault_signer = &ctx.accounts.vault_signer;
-    let vault_token1 = &ctx.accounts.vault_token1;
+    let local_profile = &mut ctx.accounts.local_profile;
+    let user_token_account = &ctx.accounts.user_token_account;
+    let launchpad_token_account = &ctx.accounts.launchpad_token_account;
     let clock = Clock::get().unwrap();
-    let vault_program = &ctx.accounts.vault_program;
-    let token_program = &ctx.accounts.token_program;
+
+    require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
+    require!(launchpad.price_n > 0u64, ErrorCode::NotAllowed);
+    require!(local_profile.is_registered, ErrorCode::Unauthorized);
+    require!(
+      clock.unix_timestamp >= launchpad.redeem_start_timestamp && clock.unix_timestamp <= launchpad.redeem_end_timestamp,
+      ErrorCode::NotInTimeframe,
+    );
+    require!(
+      launchpad.min_per_tx == 0u64 || amount >= launchpad.min_per_tx,
+      ErrorCode::MinAmountNotSatisfied,
+    );
+    let redeemed_amount = local_profile.redeemed_token.checked_add(amount).unwrap();
+    require!(
+      launchpad.max_per_user == 0u64 || redeemed_amount <= launchpad.max_per_user,
+      ErrorCode::MaxAmountReached,
+    );
+    local_profile.redeemed_token = redeemed_amount;
+
+    let amount_sol = shared::calculate_sub_total(amount, launchpad.price_n, launchpad.price_d)
+      .unwrap();
+    // Transfer lamports
+    transfer_lamport(&user.to_account_info(), &launchpad_signer.to_account_info(), amount_sol, &[])
+      .expect("Starship: CPI failed.");
+
+
+    let seeds: &[&[_]] = &[
+      &SIGNER_SEED_1,
+      launchpad.to_account_info().key.as_ref(),
+      &[launchpad.signer_nonce],
+    ];
+
+    // Transfer token 1
+    transfer_token(launchpad_signer, &launchpad_token_account.to_account_info(), &user_token_account, amount, &[seeds])
+      .expect("Starship: CPI failed.");
+
+    Ok(())
+  }
+
+  pub fn redeem_by_token(
+    ctx: Context<RedeemByTokenContext>,
+    amount: u64,
+  ) -> Result<()> {
+
+    let user = &ctx.accounts.user;
+    let launchpad = &ctx.accounts.launchpad;
+    let launchpad_purchase = &mut ctx.accounts.launchpad_purchase;
+    let launchpad_signer = &ctx.accounts.launchpad_signer;
+    let global_profile = &ctx.accounts.global_profile;
+    let local_profile = &ctx.accounts.local_profile;
+    let user_token0_account = &ctx.accounts.user_token0_account;
+    let user_token1_account = &ctx.accounts.user_token1_account;
+    let launchpad_token0_account = &ctx.accounts.launchpad_token0_account;
+    let launchpad_token1_account = &ctx.accounts.launchpad_token1_account;
+    let clock = Clock::get().unwrap();
 
     require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
     require!(launchpad.price_n > 0u64, ErrorCode::NotAllowed);
@@ -202,88 +254,14 @@ mod coin98_starship {
       ErrorCode::MaxAmountReached,
     );
 
-    let amount_sol = shared::calculate_sub_total(amount, launchpad.price_n, launchpad.price_d)
-      .unwrap();
-    // Transfer lamports
-    transfer_lamport(
-        &user.to_account_info(),
-        &vault_signer.to_account_info(),
-        amount_sol,
-        &[]
-      )
-      .expect("Starship: CPI failed.");
-
-    let local_profile = &mut ctx.accounts.local_profile;
-
-    local_profile.redeemed_token = redeemed_amount;
-    let seeds: &[&[_]] = &[
-      &SIGNER_SEED_1,
-      launchpad.to_account_info().key.as_ref(),
-      &[launchpad.signer_nonce],
-    ];
-
-    // Transfer token 1
-    withdraw_token(
-        &amount,
-        &launchpad_signer.to_account_info(),
-        &vault.to_account_info(),
-        &vault_signer.to_account_info(),
-        &vault_token1.to_account_info(),
-        &user_token1.to_account_info(),
-        &vault_program.to_account_info(),
-        &token_program.to_account_info(),
-        &[seeds],
-      )
-      .expect("Starship: CPI failed.");
-
-    Ok(())
-  }
-
-  pub fn redeem_by_token(
-    ctx: Context<RedeemByTokenContext>,
-    amount: u64,
-  ) -> Result<()> {
-
-    let user = &ctx.accounts.user;
-    let launchpad = &ctx.accounts.launchpad;
-    let launchpad_signer = &ctx.accounts.launchpad_signer;
-    let global_profile = &ctx.accounts.global_profile;
-    let local_profile = &ctx.accounts.local_profile;
-    let user_token0 = &ctx.accounts.user_token0;
-    let user_token1 = &ctx.accounts.user_token1;
-    let vault = &ctx.accounts.vault;
-    let vault_signer = &ctx.accounts.vault_signer;
-    let vault_token0 = &ctx.accounts.vault_token0;
-    let vault_token1 = &ctx.accounts.vault_token1;
-    let clock = Clock::get().unwrap();
-    let vault_program = &ctx.accounts.vault_program;
-    let token_program = &ctx.accounts.token_program;
-
-    require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
-    require!(launchpad.price_in_token_n > 0u64, ErrorCode::NotAllowed);
-    require!(local_profile.is_registered, ErrorCode::Unauthorized);
-    require!(
-      clock.unix_timestamp >= launchpad.redeem_start_timestamp && clock.unix_timestamp <= launchpad.redeem_end_timestamp,
-      ErrorCode::NotInTimeframe,
-    );
-    require!(
-      launchpad.min_per_tx == 0u64 || amount >= launchpad.min_per_tx,
-      ErrorCode::MinAmountNotSatisfied,
-    );
-    let redeemed_amount = local_profile.redeemed_token.checked_add(amount).unwrap();
-    require!(
-      launchpad.max_per_user == 0u64 || redeemed_amount <= launchpad.max_per_user,
-      ErrorCode::MaxAmountReached,
-    );
-
-    let amount_token0 = shared::calculate_sub_total(amount, launchpad.price_in_token_n, launchpad.price_in_token_d)
+    let amount_token0 = shared::calculate_sub_total(amount, launchpad_purchase.price_n, launchpad_purchase.price_d)
       .unwrap();
 
     // Transfer token 0
     transfer_token(
         &user.to_account_info(),
-        &user_token0.to_account_info(),
-        &vault_token0.to_account_info(),
+        &user_token0_account.to_account_info(),
+        &launchpad_token0_account.to_account_info(),
         amount_token0,
         &[]
       )
@@ -300,16 +278,12 @@ mod coin98_starship {
     ];
 
     // Transfer token 1
-    withdraw_token(
-        &amount,
-        &launchpad_signer.to_account_info(),
-        &vault.to_account_info(),
-        &vault_signer.to_account_info(),
-        &vault_token1.to_account_info(),
-        &user_token1.to_account_info(),
-        &vault_program.to_account_info(),
-        &token_program.to_account_info(),
-        &[seeds],
+    transfer_token(
+        &launchpad_signer,
+        &launchpad_token1_account.to_account_info(),
+        &user_token1_account.to_account_info(),
+        amount,
+        &[seeds]
       )
       .expect("Starship: CPI failed.");
 
