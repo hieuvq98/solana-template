@@ -7,17 +7,13 @@ use crate::constant::{
   LOCAL_PROFILE_SEED_1,
   SIGNER_SEED_1,
 };
-use crate::error::{
-  ErrorCode,
-};
+use crate::error::ErrorCode;
 use crate::state::{
   GlobalProfile,
   Launchpad,
   LocalProfile,
 };
-use crate::external::spl_token::{
-  is_token_program,
-};
+use crate::external::spl_token::is_token_program;
 
 #[derive(Accounts)]
 #[instruction(launchpad_path: Vec<u8>, _launchpad_nonce: u8)]
