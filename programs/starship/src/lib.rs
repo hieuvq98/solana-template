@@ -6,36 +6,18 @@ pub mod state;
 pub mod external;
 
 use anchor_lang::prelude::*;
-use solana_program::{
-  keccak::{
-    hash,
-  },
-};
-use std::{
-  convert::{
-    TryInto,
-  },
-};
-use crate::error::{
-  ErrorCode,
-};
+use solana_program::keccak::hash;
+use std::convert::TryInto;
+use crate::error::ErrorCode;
 use crate::constant::{
   ROOT_KEYS,
   SIGNER_SEED_1,
 };
 use crate::context::*;
-use crate::state::{
-  WhitelistParams,
-};
-use crate::external::anchor_spl_system::{
-  transfer_lamport,
-};
-use crate::external::anchor_spl_token::{
-  transfer_token,
-};
-use crate::external::coin98_vault::{
-  withdraw_token,
-};
+use crate::state::WhitelistParams;
+use crate::external::anchor_spl_system::transfer_lamport;
+use crate::external::anchor_spl_token::transfer_token;
+use crate::external::coin98_vault::withdraw_token;
 
 declare_id!("SS4VMP9wmqQdehu7Uc6g1Ymsx4BCVVghKp4wRmmy1jj");
 
