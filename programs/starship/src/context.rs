@@ -348,3 +348,53 @@ pub struct CreateLocalProfileContext<'info> {
   pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+pub struct WithdrawSolContext<'info> {
+  /// CHECK: Root
+  #[account(mut)]
+  pub root: Signer<'info>,
+
+  pub launchpad: Account<'info, Launchpad>,
+
+  /// CHECK: PDA to authorize launchpad tx
+  #[account(
+    seeds = [
+      &SIGNER_SEED_1,
+      launchpad.key().as_ref(),
+    ],
+    bump = launchpad.signer_nonce,
+  )]
+  pub launchpad_signer: AccountInfo<'info>,
+
+  pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawTokenContext<'info> {
+  /// CHECK: Root
+  #[account(mut)]
+  pub root: Signer<'info>,
+
+  pub launchpad: Account<'info, Launchpad>,
+
+  /// CHECK: PDA to authorize launchpad tx
+  #[account(
+    seeds = [
+      &SIGNER_SEED_1,
+      launchpad.key().as_ref(),
+    ],
+    bump = launchpad.signer_nonce,
+  )]
+  pub launchpad_signer: AccountInfo<'info>,
+
+  /// CHECK: From token account
+  pub from: AccountInfo<'info>,
+  /// CHECK: To token account
+  pub to: AccountInfo<'info>,
+
+  /// CHECK: Solana native Token Program
+  #[account(
+    constraint = is_token_program(&token_program) @ErrorCode::InvalidAccount,
+  )]
+  pub token_program: AccountInfo<'info>,
+}

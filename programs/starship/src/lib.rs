@@ -342,6 +342,49 @@ mod coin98_starship {
 
     Ok(())
   }
+
+  #[access_control(verify_root(*ctx.accounts.root.key))]
+  pub fn withdraw_sol(
+    ctx: Context<WithdrawSolContext>,
+    amount: u64
+  ) -> Result<()> {
+    let root = &ctx.accounts.root;
+    let launchpad = &ctx.accounts.launchpad;
+    let launchpad_signer = &ctx.accounts.launchpad_signer;
+
+    let seeds: &[&[_]] = &[
+      &SIGNER_SEED_1,
+      launchpad.to_account_info().key.as_ref(),
+      &[launchpad.signer_nonce],
+    ];
+
+    transfer_lamport(&launchpad_signer.to_account_info(), &root.to_account_info(), amount, &[seeds])
+      .expect("Starship: CPI failed.");
+
+    Ok(())
+  }
+
+  #[access_control(verify_root(*ctx.accounts.root.key))]
+  pub fn withdraw_token(
+    ctx: Context<WithdrawTokenContext>,
+    amount: u64
+  ) -> Result<()> {
+    let launchpad = &ctx.accounts.launchpad;
+    let launchpad_signer = &ctx.accounts.launchpad_signer;
+    let from = &ctx.accounts.from;
+    let to = &ctx.accounts.to;
+
+    let seeds: &[&[_]] = &[
+      &SIGNER_SEED_1,
+      launchpad.to_account_info().key.as_ref(),
+      &[launchpad.signer_nonce],
+    ];
+
+    transfer_token(launchpad_signer, &from, &to, amount, &[seeds])
+      .expect("Starship: CPI failed.");
+
+    Ok(())
+  }
 }
 
 pub fn verify_root(user: Pubkey) -> Result<()> {
