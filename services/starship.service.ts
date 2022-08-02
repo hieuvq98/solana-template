@@ -26,16 +26,14 @@ export class StarshipService {
   ): Promise<PublicKey> {
     const transaction = new Transaction();
 
-    const [globalProfileAddress, globalProfileNonce]: [PublicKey, number] = await this.findUserGlobalProfileAddress(userAddress, starshipProgramId);
+    const [globalProfileAddress]: [PublicKey, number] = StarshipInstructionService.findUserGlobalProfileAddress(userAddress, starshipProgramId);
 
-    const instruction = StarshipInstructionService.createGlobalProfile(
+    const createGlobalProfileInstruction = StarshipInstructionService.createGlobalProfileInstruction(
       payerAccount.publicKey,
       userAddress,
-      globalProfileAddress,
-      globalProfileNonce,
       starshipProgramId
     );
-    transaction.add(instruction);
+    transaction.add(createGlobalProfileInstruction);
 
     const txSign = await sendAndConfirmTransaction(connection, transaction, [
       payerAccount,
@@ -49,68 +47,44 @@ export class StarshipService {
     payerAccount: Keypair,
     rootAccount: Keypair,
     launchpadName: string,
-    priceInSolN: BN,
-    priceInSolD: BN,
-    priceInTokenN: BN,
-    priceInTokenD: BN,
-    token0MintAddress: PublicKey,
-    token1MintAddress: PublicKey,
-    vaultProgramId: PublicKey,
-    vaultAddress: PublicKey,
-    vaultSignerAddress: PublicKey,
-    vaultToken0Address: PublicKey,
-    vaultToken1Address: PublicKey,
-    isPrivateSale: boolean,
-    privateSaleSignature: Buffer,
-    saleLimitPerTransaction: number,
-    saleLimitPerUser: number,
-    registerStartTimestamp: number,
-    registerEndTimestamp: number,
-    redeemStartTimestamp: number,
-    redeemEndTimestamp: number,
+    priceN: BN,
+    priceD: BN,
+    minPerTx: BN,
+    maxPerUser: BN,
+    limitSale: BN,
+    registerStartTimestamp: BN,
+    registerEndTimestamp: BN,
+    redeemStartTimestamp: BN,
+    redeemEndTimestamp: BN,
+    privateSaleSignature: Buffer | null,
     starshipProgramId: PublicKey
   ): Promise<PublicKey> {
     const transaction = new Transaction();
 
-    const [launchpadAddress, launchpadNonce]: [PublicKey, number] = await this.findLaunchpadAddress(launchpadName, starshipProgramId);
-    const [, signerNonce]: [PublicKey, number] = await this.findLaunchpadSignerAddress(
-      launchpadAddress,
-      starshipProgramId
-    );
+    const [launchpadAddress]: [PublicKey, number] = StarshipInstructionService.findLaunchpadAddress(launchpadName, starshipProgramId);
+
     if (!(await SolanaService.isAddressInUse(connection, launchpadAddress))) {
-      const launchpadDerivationPath = this.findLaunchpadDerivationPath(launchpadName);
-      const createLaunchpadInstruction = StarshipInstructionService.createLaunchpad(
+      const launchpadDerivationPath = StarshipInstructionService.findLaunchpadDerivationPath(launchpadName);
+      const createLaunchpadInstruction = StarshipInstructionService.createLaunchpadInstruction(
         payerAccount.publicKey,
-        launchpadAddress,
         launchpadDerivationPath,
-        launchpadNonce,
-        signerNonce,
         starshipProgramId
       );
       transaction.add(createLaunchpadInstruction);
     }
-    const setLaunchpadInstruction = StarshipInstructionService.setLaunchpad(
-      launchpadAddress,
+    const setLaunchpadInstruction = StarshipInstructionService.setLaunchpadInstruction(
       payerAccount.publicKey,
-      priceInSolN,
-      priceInSolD,
-      priceInTokenN,
-      priceInTokenD,
-      token0MintAddress,
-      token1MintAddress,
-      vaultProgramId,
-      vaultAddress,
-      vaultSignerAddress,
-      vaultToken0Address,
-      vaultToken1Address,
-      isPrivateSale,
-      privateSaleSignature,
-      saleLimitPerTransaction,
-      saleLimitPerUser,
+      launchpadAddress,
+      priceN,
+      priceD,
+      minPerTx,
+      maxPerUser,
+      limitSale,
       registerStartTimestamp,
       registerEndTimestamp,
       redeemStartTimestamp,
       redeemEndTimestamp,
+      privateSaleSignature,
       starshipProgramId
     );
     transaction.add(setLaunchpadInstruction);
@@ -123,6 +97,50 @@ export class StarshipService {
     return launchpadAddress;
   }
 
+  static async createLaunchpadPurchase(
+    connection: Connection,
+    rootAccount: Keypair,
+    launchpadAddress: PublicKey,
+    tokenMint: PublicKey,
+    priceN: BN,
+    priceD: BN,
+    minPerTx: BN,
+    maxPerUser: BN,
+    limitSale: BN,
+    starshipProgramId: PublicKey
+  ): Promise<PublicKey> {
+    const transaction = new Transaction();
+
+    const [lauchpadPurchaseAddress]: [PublicKey, number] = StarshipInstructionService.findLaunchpadPurchaseAddress(launchpadAddress, tokenMint, starshipProgramId)
+
+    if (!(await SolanaService.isAddressInUse(connection, lauchpadPurchaseAddress))) {
+      const createLaunchpadPurchaseInstruction = StarshipInstructionService.createLaunchpadPurchaseInstruction(
+        rootAccount.publicKey,
+        launchpadAddress,
+        tokenMint,
+        starshipProgramId
+      );
+      transaction.add(createLaunchpadPurchaseInstruction);
+    }
+    const setLaunchpadPurchaseInstruction = StarshipInstructionService.setLaunchpadPurchaseInstruction(
+      rootAccount.publicKey,
+      lauchpadPurchaseAddress,
+      priceN,
+      priceD,
+      minPerTx,
+      maxPerUser,
+      limitSale,
+      starshipProgramId
+    );
+    transaction.add(setLaunchpadPurchaseInstruction);
+
+    const txSign = await sendAndConfirmTransaction(connection, transaction, [
+      rootAccount,
+    ]);
+    console.info(`Created Launchpad purchase ${lauchpadPurchaseAddress.toBase58()} of launchpad address ${launchpadAddress.toString()} - token mint ${tokenMint.toString()}`, '---', txSign, '\n');
+    return launchpadAddress;
+  }
+
   static async createLocalProfile(
     connection: Connection,
     payerAccount: Keypair,
@@ -132,18 +150,16 @@ export class StarshipService {
   ): Promise<PublicKey> {
     const transaction = new Transaction();
 
-    const [localProfileAddress, localProfileNonce]: [PublicKey, number] = await this.findUserLocalProfileAddress(
+    const [localProfileAddress]: [PublicKey, number] = StarshipInstructionService.findUserLocalProfileAddress(
       userAddress,
       launchpadAddress,
       starshipProgramId
     );
 
-    const instruction = StarshipInstructionService.createLocalProfile(
+    const instruction = StarshipInstructionService.createLocalProfileInstruction(
       payerAccount.publicKey,
       launchpadAddress,
       userAddress,
-      localProfileAddress,
-      localProfileNonce,
       starshipProgramId
     );
     transaction.add(instruction);
@@ -159,106 +175,62 @@ export class StarshipService {
     connection: Connection,
     payerAccount: Keypair,
     launchpadAddress: PublicKey,
-    userToken1Address: PublicKey,
-    vaultAddress: PublicKey,
-    vaultToken1Address: PublicKey,
+    userTokenAddress: PublicKey,
+    launchpadTokenAddress: PublicKey,
     amount: number,
-    vaultProgrammId: PublicKey,
     starshipProgramId: PublicKey
-  ): Promise<PublicKey> {
+  ): Promise<string> {
     const transaction = new Transaction();
 
-    const [launchpadSignerAddress]: [PublicKey, number] = await this.findLaunchpadSignerAddress(
-      launchpadAddress,
-      starshipProgramId
-    );
-    const [vaultSignerAddress]: [PublicKey, number] = await VaultService.findVaultSignerAddress(vaultAddress, vaultProgrammId);
-    const [globalProfileAddress]: [PublicKey, number] = await this.findUserGlobalProfileAddress(
-      payerAccount.publicKey,
-      starshipProgramId
-    );
-    const [localProfileAddress]: [PublicKey, number] = await this.findUserLocalProfileAddress(
+    const redeemBySolInstruction = StarshipInstructionService.redeemBySolInstruction(
       payerAccount.publicKey,
       launchpadAddress,
-      starshipProgramId
-    );
-
-    const instruction = StarshipInstructionService.redeemBySol(
-      launchpadAddress,
-      launchpadSignerAddress,
-      payerAccount.publicKey,
-      globalProfileAddress,
-      localProfileAddress,
-      userToken1Address,
-      vaultAddress,
-      vaultSignerAddress,
-      vaultToken1Address,
+      userTokenAddress,
+      launchpadTokenAddress,
       amount,
-      vaultProgrammId,
       starshipProgramId
     );
-    transaction.add(instruction);
+    transaction.add(redeemBySolInstruction);
 
     const txSign = await sendAndConfirmTransaction(connection, transaction, [
       payerAccount,
     ]);
     console.info(`Redeemed ${amount} tokens using SOL`, '---', txSign, '\n');
-    return localProfileAddress;
+    return txSign;
   }
 
   static async redeemByToken(
     connection: Connection,
     payerAccount: Keypair,
     launchpadAddress: PublicKey,
+    launchpadPurchaseAddress: PublicKey,
     userToken0Address: PublicKey,
     userToken1Address: PublicKey,
-    vaultAddress: PublicKey,
-    vaultToken0Address: PublicKey,
-    vaultToken1Address: PublicKey,
+    launchpadToken0Address: PublicKey,
+    launchpadToken1Address: PublicKey,
     amount: number,
-    vaultProgrammId: PublicKey,
     starshipProgramId: PublicKey
-  ): Promise<PublicKey> {
+  ): Promise<string> {
     const transaction = new Transaction();
 
-    const [launchpadSignerAddress]: [PublicKey, number] = await this.findLaunchpadSignerAddress(
-      launchpadAddress,
-      starshipProgramId
-    );
-    const [vaultSignerAddress]: [PublicKey, number] = await VaultService.findVaultSignerAddress(vaultAddress, vaultProgrammId);
-    const [globalProfileAddress]: [PublicKey, number] = await this.findUserGlobalProfileAddress(
-      payerAccount.publicKey,
-      starshipProgramId
-    );
-    const [localProfileAddress]: [PublicKey, number] = await this.findUserLocalProfileAddress(
+    const redeemByTokenInstruction = StarshipInstructionService.redeemByTokenInstruction(
       payerAccount.publicKey,
       launchpadAddress,
-      starshipProgramId
-    );
-
-    const instruction = StarshipInstructionService.redeemByToken(
-      launchpadAddress,
-      launchpadSignerAddress,
-      payerAccount.publicKey,
-      globalProfileAddress,
-      localProfileAddress,
+      launchpadPurchaseAddress,
       userToken0Address,
       userToken1Address,
-      vaultAddress,
-      vaultSignerAddress,
-      vaultToken0Address,
-      vaultToken1Address,
+      launchpadToken0Address,
+      launchpadToken1Address,
       amount,
-      vaultProgrammId,
       starshipProgramId
     );
-    transaction.add(instruction);
+    transaction.add(redeemByTokenInstruction);
 
     const txSign = await sendAndConfirmTransaction(connection, transaction, [
       payerAccount,
     ]);
     console.info(`Redeemed ${amount} tokens using Token0`, '---', txSign, '\n');
-    return localProfileAddress;
+    return txSign;
   }
 
   static async register(
@@ -271,11 +243,11 @@ export class StarshipService {
   ): Promise<PublicKey> {
     const transaction = new Transaction();
 
-    const [globalProfileAddress, globalProfileNonce]: [PublicKey, number] = await this.findUserGlobalProfileAddress(
+    const [globalProfileAddress]: [PublicKey, number] = StarshipInstructionService.findUserGlobalProfileAddress(
       payerAccount.publicKey,
       starshipProgramId
     );
-    const [localProfileAddress, localProfileNonce]: [PublicKey, number] = await this.findUserLocalProfileAddress(
+    const [localProfileAddress]: [PublicKey, number] = StarshipInstructionService.findUserLocalProfileAddress(
       payerAccount.publicKey,
       launchpadAddress,
       starshipProgramId
@@ -284,11 +256,9 @@ export class StarshipService {
     if (
       !(await SolanaService.isAddressInUse(connection, globalProfileAddress))
     ) {
-      const createGlobalProfileInstruction = StarshipInstructionService.createGlobalProfile(
+      const createGlobalProfileInstruction = StarshipInstructionService.createGlobalProfileInstruction(
         payerAccount.publicKey,
         payerAccount.publicKey,
-        globalProfileAddress,
-        globalProfileNonce,
         starshipProgramId
       );
       transaction.add(createGlobalProfileInstruction);
@@ -297,23 +267,19 @@ export class StarshipService {
     if (
       !(await SolanaService.isAddressInUse(connection, localProfileAddress))
     ) {
-      const createLocalProfileInstruction = StarshipInstructionService.createLocalProfile(
+      const createLocalProfileInstruction = StarshipInstructionService.createLocalProfileInstruction(
         payerAccount.publicKey,
         launchpadAddress,
         payerAccount.publicKey,
-        localProfileAddress,
-        localProfileNonce,
         starshipProgramId
       );
       transaction.add(createLocalProfileInstruction);
     }
-    const registerInstruction = StarshipInstructionService.register(
+    const registerInstruction = StarshipInstructionService.registerInstruction(
       launchpadAddress,
       payerAccount.publicKey,
       index,
       proofs,
-      globalProfileAddress,
-      localProfileAddress,
       starshipProgramId
     );
     transaction.add(registerInstruction);
@@ -339,25 +305,22 @@ export class StarshipService {
   ): Promise<boolean> {
     const transaction = new Transaction();
 
-    const [globalProfileAddress, globalProfileNonce]: [PublicKey, number] = await this.findUserGlobalProfileAddress(userAddress, starshipProgramId);
+    const [globalProfileAddress]: [PublicKey, number] = StarshipInstructionService.findUserGlobalProfileAddress(userAddress, starshipProgramId);
 
     if (
       !(await SolanaService.isAddressInUse(connection, globalProfileAddress))
     ) {
-      const createGlobalProfileInstruction = StarshipInstructionService.createGlobalProfile(
+      const createGlobalProfileInstruction = StarshipInstructionService.createGlobalProfileInstruction(
         payerAccount.publicKey,
         userAddress,
-        globalProfileAddress,
-        globalProfileNonce,
         starshipProgramId
       );
       transaction.add(createGlobalProfileInstruction);
     }
 
-    const setBlacklistInstruction = StarshipInstructionService.setBlacklist(
+    const setBlacklistInstruction = StarshipInstructionService.setBlacklistInstruction(
       payerAccount.publicKey,
       userAddress,
-      globalProfileAddress,
       isBlacklisted,
       starshipProgramId
     );
@@ -389,57 +352,6 @@ export class StarshipService {
     );
     data.signer = signerAddress;
     return data;
-  }
-
-  static findLaunchpadDerivationPath(identifier: string): Buffer {
-    return HashService.sha256(identifier);
-  }
-
-  static async findLaunchpadAddress(
-    identifier: string,
-    starshipProgramId: PublicKey
-  ): Promise<[PublicKey, number]> {
-    const prefix: Buffer = HashService.sha256('Launchpad').slice(0, 8);
-    const derivationPath: Buffer = this.findLaunchpadDerivationPath(identifier);
-    return PublicKey.findProgramAddress(
-      [prefix, derivationPath],
-      starshipProgramId
-    );
-  }
-
-  static async findLaunchpadSignerAddress(
-    launchpadAddress: PublicKey,
-    starshipProgramId: PublicKey
-  ): Promise<[PublicKey, number]> {
-    const prefix: Buffer = HashService.sha256('Signer').slice(0, 8);
-    return PublicKey.findProgramAddress(
-      [prefix, launchpadAddress.toBuffer()],
-      starshipProgramId
-    );
-  }
-
-  static async findUserGlobalProfileAddress(
-    userAddress: PublicKey,
-    starshipProgramId: PublicKey
-  ): Promise<[PublicKey, number]> {
-    const prefix: Buffer = HashService.sha256('GlobalProfile').slice(0, 8);
-    const prefix2: Buffer = HashService.sha256('Lunapad').slice(0, 8);
-    return PublicKey.findProgramAddress(
-      [prefix, prefix2, userAddress.toBuffer()],
-      starshipProgramId
-    );
-  }
-
-  static async findUserLocalProfileAddress(
-    userAddress: PublicKey,
-    launchpadAddress: PublicKey,
-    starshipProgramId: PublicKey
-  ): Promise<[PublicKey, number]> {
-    const prefix: Buffer = HashService.sha256('LocalProfile').slice(0, 8);
-    return PublicKey.findProgramAddress(
-      [prefix, launchpadAddress.toBuffer(), userAddress.toBuffer()],
-      starshipProgramId
-    );
   }
 
   static async printLaunchpadAccountInfo(

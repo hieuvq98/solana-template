@@ -288,8 +288,8 @@ export class StarshipInstructionService {
   }
 
   static redeemBySolInstruction(
-    launchpadAddress: PublicKey,
     userAddress: PublicKey,
+    launchpadAddress: PublicKey,
     userTokenAddress: PublicKey,
     launchpadTokenAddress: PublicKey,
     amount: number,
@@ -397,10 +397,10 @@ export class StarshipInstructionService {
   static setBlacklistInstruction(
     ownerAddress: PublicKey,
     userAddress: PublicKey,
-    userGlobalProfileAddress: PublicKey,
     isBlacklisted: boolean,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
+    const [userGlobalProfileAddress, ] = StarshipInstructionService.findUserGlobalProfileAddress(userAddress, starshipProgramId)
     const request: SetBlacklistRequest = {
       isBlacklisted: isBlacklisted,
     };
