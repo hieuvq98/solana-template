@@ -18,7 +18,7 @@ use crate::state::WhitelistParams;
 use crate::external::anchor_spl_system::transfer_lamport;
 use crate::external::anchor_spl_token::transfer_token;
 
-declare_id!("SS4VMP9wmqQdehu7Uc6g1Ymsx4BCVVghKp4wRmmy1jj");
+declare_id!("FaJtq6SLQNwGgaggr7izJMgRYkxU1xwtCjnyESSXhvHG");
 
 #[program]
 mod coin98_starship {
@@ -65,10 +65,12 @@ mod coin98_starship {
 
     let clock = Clock::get().unwrap();
 
+    /*
     require!(register_start_timestamp < register_end_timestamp, ErrorCode::InvalidInput);
     require!(clock.unix_timestamp < register_start_timestamp, ErrorCode::InvalidInput);
     require!(redeem_start_timestamp < redeem_end_timestamp, ErrorCode::InvalidInput);
     require!(register_end_timestamp < redeem_start_timestamp, ErrorCode::TimeOverlap);
+    */
 
     let launchpad = &mut ctx.accounts.launchpad;
 
@@ -99,7 +101,7 @@ mod coin98_starship {
     let launchpad = &ctx.accounts.launchpad;
     let launchpad_purchase = &mut ctx.accounts.launchpad_purchase;
 
-    launchpad_purchase.nonce = *ctx.bumps.get("launchpad").unwrap();
+    launchpad_purchase.nonce = *ctx.bumps.get("launchpad_purchase").unwrap();
     launchpad_purchase.token_mint = token_mint;
     launchpad_purchase.launchpad = launchpad.key();
 
@@ -149,10 +151,12 @@ mod coin98_starship {
     let clock = Clock::get().unwrap();
 
     require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
+    /*
     require!(
       clock.unix_timestamp >= launchpad.register_start_timestamp && clock.unix_timestamp <= launchpad.register_end_timestamp,
       ErrorCode::NotInTimeframe,
     );
+    */
     if let Some(root) = &launchpad.private_sale_root {
       let whitelist = WhitelistParams {
         index,
@@ -187,10 +191,12 @@ mod coin98_starship {
     require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
     require!(launchpad.price_n > 0u64, ErrorCode::NotAllowed);
     require!(local_profile.is_registered, ErrorCode::Unauthorized);
+    /*
     require!(
       clock.unix_timestamp >= launchpad.redeem_start_timestamp && clock.unix_timestamp <= launchpad.redeem_end_timestamp,
       ErrorCode::NotInTimeframe,
     );
+    */
     require!(
       launchpad.min_per_tx == 0u64 || amount >= launchpad.min_per_tx,
       ErrorCode::MinAmountNotSatisfied,
@@ -242,10 +248,12 @@ mod coin98_starship {
     require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
     require!(launchpad.price_n > 0u64, ErrorCode::NotAllowed);
     require!(local_profile.is_registered, ErrorCode::Unauthorized);
+    /*
     require!(
       clock.unix_timestamp >= launchpad.redeem_start_timestamp && clock.unix_timestamp <= launchpad.redeem_end_timestamp,
       ErrorCode::NotInTimeframe,
     );
+    */
     require!(
       launchpad.min_per_tx == 0u64 || amount >= launchpad.min_per_tx,
       ErrorCode::MinAmountNotSatisfied,

@@ -1,15 +1,12 @@
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { SolanaConfigService } from "@coin98/solana-support-library/config"
 import { StarshipService } from "../services/starship.service"
-import { VaultService } from "@coin98/vault-js";
 import BN from "bn.js";
 import { randomString, RedemptionTree, WhitelistParams } from "./utils"
 import { TokenProgramService } from "@coin98/solana-support-library";
 import { StarshipInstructionService } from "../services/starship_instruction.service";
 
-const PROGRAM_ID: PublicKey = new PublicKey("Cyv1nUa7si2dds8KvoNcjyC7ey7dhsgv3cpmrTJHcyHv")
-
-const VAULT_PROGRAM_ID: PublicKey = new PublicKey("5WxdfYhjwLxL5aJb2J5EC8JXjxk6La5zmFaXq1eSS5UY")
+const PROGRAM_ID: PublicKey = new PublicKey("FaJtq6SLQNwGgaggr7izJMgRYkxU1xwtCjnyESSXhvHG")
 
 describe("Profile Test",() => {
   let connection = new Connection("http://localhost:8899", "confirmed")
@@ -49,10 +46,12 @@ describe("Profile Test",() => {
   const saleLimitPerTransaction = new BN(10000)
   const saleLimitPerUser = new BN(100000000000)
   const currentTime =  Math.floor((new Date()).valueOf() / 1000)
-  const registerStartTimestamp = new BN(currentTime)
-  const registerEndTimestamp = new BN(currentTime + 5)
-  const redeemStartTimestamp = new BN(currentTime + 5)
-  const redeemEndTimestamp = new BN(currentTime + 10)
+  const registerStartTimestamp = new BN(currentTime + 5)
+  const registerEndTimestamp = new BN(currentTime + 10)
+  const redeemStartTimestamp = new BN(currentTime + 11)
+  const redeemEndTimestamp = new BN(currentTime + 100)
+
+  let launchpadAddress: PublicKey
 
   before(async () => {
     defaultAccount = await SolanaConfigService.getDefaultAccount()
@@ -73,6 +72,28 @@ describe("Profile Test",() => {
       defaultAccount.publicKey,
       null
     )
+
+    const launchpadName = randomString(10)
+
+    launchpadAddress = await StarshipService.createLaunchpad(
+      connection,
+      defaultAccount,
+      defaultAccount,
+      launchpadName,
+      token0Mint.publicKey,
+      priceInSolN,
+      priceInSolD,
+      saleLimitPerTransaction,
+      saleLimitPerUser,
+      limitSale,
+      registerStartTimestamp,
+      registerEndTimestamp,
+      redeemStartTimestamp,
+      redeemEndTimestamp,
+      redemptiomTree.getRoot().hash,
+      PROGRAM_ID
+    )
+
   })
 
   it("Create Global Profile!", async () => {
@@ -87,28 +108,6 @@ describe("Profile Test",() => {
   })
 
   it("Create Local Profile!", async () => {
-    const launchpadName = randomString(10)
-
-    await StarshipService.createLaunchpad(
-      connection,
-      defaultAccount,
-      defaultAccount,
-      launchpadName,
-      token0Mint.publicKey,
-      priceInSolN,
-      priceInSolD,
-      limitSale,
-      saleLimitPerTransaction,
-      saleLimitPerUser,
-      registerStartTimestamp,
-      registerEndTimestamp,
-      redeemStartTimestamp,
-      redeemEndTimestamp,
-      redemptiomTree.getRoot().hash,
-      PROGRAM_ID
-    )
-
-    const [launchpadAddress,]: [PublicKey, number] = StarshipInstructionService.findLaunchpadAddress(launchpadName, PROGRAM_ID)
     await StarshipService.createLocalProfile(
       connection,
       defaultAccount,

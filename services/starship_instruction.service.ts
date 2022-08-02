@@ -62,7 +62,7 @@ interface SetLaunchpadRequest {
   registerEndTimestamp: BN;
   redeemStartTimestamp: BN;
   redeemEndTimestamp: BN;
-  privateSaleSignature: Buffer | null;
+  privateSaleRoot: Buffer | null;
 }
 
 interface CreateLaunchpadPurchaseRequest {
@@ -85,27 +85,21 @@ export interface GlobalProfile {
 export interface Launchpad {
   signer?: PublicKey;
   nonce: number;
-  priceInSolN: BN;
-  priceInSolD: BN;
-  priceInTokenN: BN;
-  priceInTokenD: BN;
-  tokenProgramId: PublicKey;
-  token0Mint: PublicKey;
-  token1Mint: PublicKey;
-  vaultProgramId: PublicKey;
-  vault: PublicKey;
-  vaultSigner: PublicKey;
-  vaultToken0: PublicKey;
-  vaultToken1: PublicKey;
-  isPrivateSale: boolean;
-  privateSaleSignature: Buffer;
+  signerNonce: number;
+  isActive: boolean;
+  priceN: BN;
+  priceD: BN;
   minPerTx: BN;
   maxPerUser: BN;
+  limitSale: BN;
   registerStartTimestamp: BN;
   registerEndTimestamp: BN;
   redeemStartTimestamp: BN;
   redeemEndTimestamp: BN;
-  isActive: boolean;
+  privateSaleRoot: Buffer;
+  tokenMint: Buffer;
+  owner: Buffer;
+  newOwner: Buffer;
 }
 
 export interface LocalProfile {
@@ -178,7 +172,7 @@ export class StarshipInstructionService {
     registerEndTimestamp: BN,
     redeemStartTimestamp: BN,
     redeemEndTimestamp: BN,
-    privateSaleSignature: Buffer | null,
+    privateSaleRoot: Buffer | null,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
     const request: SetLaunchpadRequest = {
@@ -191,7 +185,7 @@ export class StarshipInstructionService {
       registerEndTimestamp,
       redeemStartTimestamp,
       redeemEndTimestamp,
-      privateSaleSignature
+      privateSaleRoot
     };
 
     const data = coder.instruction.encode("setLaunchpad", request)
@@ -328,14 +322,14 @@ export class StarshipInstructionService {
   }
 
   static redeemByTokenInstruction(
+    userAddress: PublicKey,
     launchpadAddress: PublicKey,
     launchpadPurchaseAddress: PublicKey,
-    userAddress: PublicKey,
     userToken0Address: PublicKey,
     userToken1Address: PublicKey,
     launchpadToken0Address: PublicKey,
     launchpadToken1Address: PublicKey,
-    amount: number,
+    amount: BN,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
     const [userGlobalProfileAddress,]: [PublicKey, number] = StarshipInstructionService.findUserGlobalProfileAddress(userAddress, starshipProgramId)
@@ -344,13 +338,13 @@ export class StarshipInstructionService {
     const [launchpadSignerAddress, ]: [PublicKey, number] = StarshipInstructionService.findLaunchpadSignerAddress(launchpadAddress, starshipProgramId)
 
     const request: RedeemByTokenRequest = {
-      amount: new BN(amount),
+      amount,
     };
     const data = coder.instruction.encode("redeemByToken", request)
     const keys: AccountMeta[] = [
       <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: launchpadPurchaseAddress, isSigner: false, isWritable: false, },
-      <AccountMeta>{ pubkey: launchpadSignerAddress, isSigner: false, isWritable: true, },
+      <AccountMeta>{ pubkey: launchpadSignerAddress, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: userAddress, isSigner: true, isWritable: true },
       <AccountMeta>{ pubkey: userGlobalProfileAddress, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: userLocalProfileAddress, isSigner: false, isWritable: true, },

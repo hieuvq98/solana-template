@@ -112,7 +112,6 @@ export class StarshipService {
     starshipProgramId: PublicKey
   ): Promise<PublicKey> {
     const transaction = new Transaction();
-
     const [lauchpadPurchaseAddress]: [PublicKey, number] = StarshipInstructionService.findLaunchpadPurchaseAddress(launchpadAddress, tokenMint, starshipProgramId)
 
     if (!(await SolanaService.isAddressInUse(connection, lauchpadPurchaseAddress))) {
@@ -140,7 +139,7 @@ export class StarshipService {
       rootAccount,
     ]);
     console.info(`Created Launchpad purchase ${lauchpadPurchaseAddress.toBase58()} of launchpad address ${launchpadAddress.toString()} - token mint ${tokenMint.toString()}`, '---', txSign, '\n');
-    return launchpadAddress;
+    return lauchpadPurchaseAddress;
   }
 
   static async createLocalProfile(
@@ -210,7 +209,7 @@ export class StarshipService {
     userToken1Address: PublicKey,
     launchpadToken0Address: PublicKey,
     launchpadToken1Address: PublicKey,
-    amount: number,
+    amount: BN,
     starshipProgramId: PublicKey
   ): Promise<string> {
     const transaction = new Transaction();
@@ -368,23 +367,19 @@ export class StarshipService {
     console.info(`Address:            ${launchpadAddress.toBase58()} -- ${launchpadAddress.toBuffer().toString('hex')}`);
     console.info(`Signer:             ${accountData.signer.toBase58()} -- ${accountData.signer.toBuffer().toString('hex')}`);
     console.info(`Nonce:              ${accountData.nonce}`);
-    console.info(`Price in SOL:       ${accountData.priceInSolN.toString()} / ${accountData.priceInSolD.toString()} = ${accountData.priceInSolN.div(accountData.priceInSolD).toNumber()}`);
-    console.info(`Price in Token:     ${accountData.priceInTokenN.toString()} / ${accountData.priceInTokenD.toString()} = ${accountData.priceInTokenN.div(accountData.priceInTokenD).toNumber()}`);
-    console.info(`Token0 Mint:        ${accountData.token0Mint.toBase58()} -- ${accountData.token0Mint.toBuffer().toString('hex')}`);
-    console.info(`Token1 Mint:        ${accountData.token1Mint.toBase58()} -- ${accountData.token1Mint.toBuffer().toString('hex')}`);
-    console.info(`Vault:              ${accountData.vault.toBase58()} -- ${accountData.vault.toBuffer().toString('hex')}`);
-    console.info(`Vault Signer:       ${accountData.vaultSigner.toBase58()} -- ${accountData.vaultSigner.toBuffer().toString('hex')}`);
-    console.info(`Vault Token0:       ${accountData.vaultToken0.toBase58()} -- ${accountData.vaultToken0.toBuffer().toString('hex')}`);
-    console.info(`Vault Token1:       ${accountData.vaultToken1.toBase58()} -- ${accountData.vaultToken1.toBuffer().toString('hex')}`);
-    console.info(`Is Private:         ${accountData.isPrivateSale}`);
-    console.info(`Private Signature:  ${accountData.privateSaleSignature.toString('hex')} - ${accountData.privateSaleSignature.toJSON().data}`);
+    console.info(`Price in SOL:       ${accountData.priceN.toString()} / ${accountData.priceD.toString()} = ${accountData.priceN.div(accountData.priceD).toNumber()}`);
+    console.info(`Private Signature:  ${accountData.privateSaleRoot.toString('hex')} - ${accountData.privateSaleRoot.toJSON().data}`);
     console.info(`Min per tx:         ${accountData.minPerTx.toNumber()}`);
     console.info(`Max per user:       ${accountData.maxPerUser.toNumber()}`);
+    console.info(`Limit sale:         ${accountData.limitSale.toNumber()}`);
     console.info(`Register time start:${moment(accountData.registerStartTimestamp.toNumber() * 1000).format('dddd, MMMM Do YYYY, hh:mm:ss')} -- ${accountData.registerStartTimestamp}`);
     console.info(`Register time end:  ${moment(accountData.registerEndTimestamp.toNumber() * 1000).format('dddd, MMMM Do YYYY, hh:mm:ss')} -- ${accountData.registerEndTimestamp}`);
     console.info(`Redeem time start:  ${moment(accountData.redeemStartTimestamp.toNumber() * 1000).format('dddd, MMMM Do YYYY, hh:mm:ss')} -- ${accountData.redeemStartTimestamp}`);
     console.info(`Redeem time end:    ${moment(accountData.redeemEndTimestamp.toNumber() * 1000).format('dddd, MMMM Do YYYY, hh:mm:ss')} -- ${accountData.redeemEndTimestamp}`);
     console.info(`Is active:          ${accountData.isActive}`);
+    console.info(`Token mint:         ${accountData.tokenMint.toString()}`);
+    console.info(`Owner:              ${accountData.owner.toString()}`);
+    console.info(`New Owner:          ${accountData.newOwner.toString()}`);
     console.info('');
   }
 

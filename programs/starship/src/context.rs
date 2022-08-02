@@ -84,7 +84,7 @@ pub struct SetLaunchPadPurchaseContext<'info> {
   pub root: Signer<'info>,
 
   #[account(mut)]
-  pub launchpad_purchase: Account<'info, Launchpad>,
+  pub launchpad_purchase: Account<'info, LaunchpadPurchase>,
 }
 
 #[derive(Accounts)]
@@ -259,14 +259,14 @@ pub struct RedeemByTokenContext<'info> {
   #[account(
     mut,
     constraint = launchpad_token0_account.owner == launchpad_signer.key() @ErrorCode::InvalidAccount,
-    constraint = launchpad_token0_account.mint == launchpad.token_mint @ErrorCode::InvalidAccount,
+    constraint = launchpad_token0_account.mint == launchpad_purchase.token_mint @ErrorCode::InvalidAccount,
   )]
   pub launchpad_token0_account: Account<'info, TokenAccount>,
   
   #[account(
     mut,
-    constraint = launchpad_token0_account.owner == launchpad_signer.key() @ErrorCode::InvalidAccount,
-    constraint = launchpad_token0_account.mint == launchpad_purchase.token_mint @ErrorCode::InvalidAccount,
+    constraint = launchpad_token1_account.owner == launchpad_signer.key() @ErrorCode::InvalidAccount,
+    constraint = launchpad_token1_account.mint == launchpad.token_mint @ErrorCode::InvalidAccount,
   )]
   pub launchpad_token1_account: Account<'info, TokenAccount>,
   
@@ -299,7 +299,7 @@ pub struct SetBlacklistContext<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(_profile_nonce: u8, user: Pubkey)]
+#[instruction(user: Pubkey)]
 pub struct CreateGlobalProfileContext<'info> {
 
   /// CHECK: Fee payer
@@ -323,7 +323,7 @@ pub struct CreateGlobalProfileContext<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(_profile_nonce: u8, user: Pubkey)]
+#[instruction(user: Pubkey)]
 pub struct CreateLocalProfileContext<'info> {
 
   /// CHECK: Fee payer
