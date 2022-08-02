@@ -23,6 +23,7 @@ interface CreateGlobalProfileRequest {
 
 interface CreateLaunchpadRequest {
   launchpadPath: Buffer;
+  tokenMint: PublicKey
 }
 
 export const WHITELIST_LAYOUT = borsh.struct<Whitelist>([
@@ -143,11 +144,13 @@ export class StarshipInstructionService {
   static createLaunchpadInstruction(
     payerAddress: PublicKey,
     launchpadPath: Buffer,
+    tokenMint: PublicKey,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
     const [launchpadAddress, ]: [PublicKey, number] = StarshipInstructionService.findLaunchpadAddress(launchpadPath, starshipProgramId)
     const request: CreateLaunchpadRequest = {
       launchpadPath,
+      tokenMint
     };
     const data = coder.instruction.encode("createLaunchpad", request)
     const keys: AccountMeta[] = [

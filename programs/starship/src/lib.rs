@@ -28,6 +28,7 @@ mod coin98_starship {
   pub fn create_launchpad(
     ctx: Context<CreateLaunchpadContext>,
     _launchpad_path: Vec<u8>,
+    token_mint: Pubkey,
   ) -> Result<()> {
 
     let launchpad = &mut ctx.accounts.launchpad;
@@ -42,6 +43,7 @@ mod coin98_starship {
     );
     launchpad.signer_nonce = signer_nonce;
     launchpad.owner = *ctx.accounts.root.key;
+    launchpad.token_mint = token_mint;
 
     Ok(())
   }

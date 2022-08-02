@@ -47,6 +47,7 @@ export class StarshipService {
     payerAccount: Keypair,
     rootAccount: Keypair,
     launchpadName: string,
+    tokenMint: PublicKey,
     priceN: BN,
     priceD: BN,
     minPerTx: BN,
@@ -68,6 +69,7 @@ export class StarshipService {
       const createLaunchpadInstruction = StarshipInstructionService.createLaunchpadInstruction(
         payerAccount.publicKey,
         launchpadDerivationPath,
+        tokenMint,
         starshipProgramId
       );
       transaction.add(createLaunchpadInstruction);

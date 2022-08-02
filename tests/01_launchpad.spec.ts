@@ -6,7 +6,7 @@ import BN from "bn.js";
 import { randomString, RedemptionTree, WhitelistParams } from "./utils"
 import { TokenProgramService } from "@coin98/solana-support-library";
 import assert from "assert"
-import { Launchpad } from "../services/starship_instruction.service";
+import { Launchpad, StarshipInstructionService } from "../services/starship_instruction.service";
 
 const PROGRAM_ID: PublicKey = new PublicKey("Cyv1nUa7si2dds8KvoNcjyC7ey7dhsgv3cpmrTJHcyHv")
 
@@ -18,6 +18,8 @@ describe("Launchpad Test",() => {
   let defaultAccount: Keypair
   const priceInSolN = new BN(1000)
   const priceInSolD = new BN(1)
+
+  const limitSale =  new BN("1000000000000")
 
   const priceInTokenN = new BN(1000)
   const priceInTokenD = new BN(1)
@@ -46,29 +48,16 @@ describe("Launchpad Test",() => {
 
   const redemptiomTree = new RedemptionTree(whitelist)
 
-  const isPrivateSale: boolean = true
-  const saleLimitPerTransaction = 10
-  const saleLimitPerUser = 10
+  const saleLimitPerTransaction = new BN(10000)
+  const saleLimitPerUser = new BN(100000000000)
   const currentTime =  Math.floor((new Date()).valueOf() / 1000)
-  const registerStartTimestamp = currentTime
-  const registerEndTimestamp = currentTime + 5
-  const redeemStartTimestamp = currentTime + 5
-  const redeemEndTimestamp = currentTime + 10
-
-  let vaultAddress: PublicKey
-  let vaultSignerAddress: PublicKey
+  const registerStartTimestamp = new BN(currentTime)
+  const registerEndTimestamp = new BN(currentTime + 5)
+  const redeemStartTimestamp = new BN(currentTime + 5)
+  const redeemEndTimestamp = new BN(currentTime + 10)
 
   before(async () => {
     defaultAccount = await SolanaConfigService.getDefaultAccount()
-    const vaultName = randomString(10)
-    
-    await VaultService.createVault(
-      connection,
-      defaultAccount,
-      vaultName,
-      VAULT_PROGRAM_ID
-    )
-
     await TokenProgramService.createTokenMint(
       connection,
       defaultAccount,
@@ -86,57 +75,33 @@ describe("Launchpad Test",() => {
       defaultAccount.publicKey,
       null
     )
-
-    vaultAddress = (await VaultService.findVaultAddress(vaultName, VAULT_PROGRAM_ID))[0]
-    vaultSignerAddress = (await VaultService.findVaultSignerAddress(vaultAddress, VAULT_PROGRAM_ID))[0]
-
   })
 
   it("Create Launchpad!", async() => {
     const launchpadName = randomString(10)
-
-    const vaultToken0Address: PublicKey = await TokenProgramService.findAssociatedTokenAddress(
-      vaultSignerAddress,
-      token0Mint.publicKey
-    )
-
-    const vaultToken1Address: PublicKey = await TokenProgramService.findAssociatedTokenAddress(
-      vaultSignerAddress,
-      token1Mint.publicKey
-    )
 
     await StarshipService.createLaunchpad(
       connection,
       defaultAccount,
       defaultAccount,
       launchpadName,
+      token0Mint.publicKey,
       priceInSolN,
       priceInSolD,
-      priceInTokenN,
-      priceInTokenD,
-      token0Mint.publicKey,
-      token1Mint.publicKey,
-      VAULT_PROGRAM_ID,
-      vaultAddress,
-      vaultSignerAddress,
-      vaultToken0Address,
-      vaultToken1Address,
-      isPrivateSale,
-      redemptiomTree.getRoot().hash,
+      limitSale,
       saleLimitPerTransaction,
       saleLimitPerUser,
       registerStartTimestamp,
       registerEndTimestamp,
       redeemStartTimestamp,
       redeemEndTimestamp,
+      redemptiomTree.getRoot().hash,
       PROGRAM_ID
     )
 
-    const [launchpadAddress,]: [PublicKey, number] = await StarshipService.findLaunchpadAddress(launchpadName, PROGRAM_ID)
+    const [launchpadAddress,]: [PublicKey, number] = StarshipInstructionService.findLaunchpadAddress(launchpadName, PROGRAM_ID)
     const launchpadInfo:  Launchpad = await StarshipService.getLaunchpadAccountInfo(connection, launchpadAddress)
 
-    assert(launchpadInfo.vault.toString() == vaultAddress.toString(), "Starship: Invalid vault address")
-    assert(launchpadInfo.vaultSigner.toString() == vaultSignerAddress.toString(), "Starship: Invalid vault signer address")
     assert(launchpadInfo.maxPerUser.toString() == saleLimitPerUser.toString(), "Starship: Invalid max per user")
     assert(launchpadInfo.minPerTx.toString() == saleLimitPerTransaction.toString(), "Starship: Invalid min per transaction")
   })

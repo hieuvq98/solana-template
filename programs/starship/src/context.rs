@@ -19,7 +19,7 @@ use crate::external::spl_token::is_token_program;
 use crate::external::anchor_spl_token::TokenAccount;
 
 #[derive(Accounts)]
-#[instruction(launchpad_path: Vec<u8>, _launchpad_nonce: u8)]
+#[instruction(launchpad_path: Vec<u8>)]
 pub struct CreateLaunchpadContext<'info> {
 
   /// CHECK: program owner, verified using #access_control
