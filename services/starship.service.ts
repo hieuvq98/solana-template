@@ -339,6 +339,68 @@ export class StarshipService {
     return true;
   }
 
+  static async withdrawSol(
+    connection: Connection,
+    rootAccount: Keypair,
+    launchpadAddress: PublicKey,
+    amount: BN,
+    starshipProgramId: PublicKey
+  ): Promise<boolean> {
+    const transaction = new Transaction();
+
+    const withdrawSolInstruction = StarshipInstructionService.withdrawSolInstruction(
+      rootAccount.publicKey,
+      launchpadAddress,
+      amount,
+      starshipProgramId
+    );
+    transaction.add(withdrawSolInstruction);
+
+    const txSign = await sendAndConfirmTransaction(connection, transaction, [
+      rootAccount,
+    ]);
+    console.info(
+      `Withdraw sol from ${launchpadAddress}`,
+      '---',
+      txSign,
+      '\n'
+    );
+    return true;
+  }
+
+  static async withdrawToken(
+    connection: Connection,
+    rootAccount: Keypair,
+    launchpadAddress: PublicKey,
+    from: PublicKey,
+    to: PublicKey,
+    amount: BN,
+    starshipProgramId: PublicKey
+  ): Promise<boolean> {
+    const transaction = new Transaction();
+
+    const withdrawTokenInstruction = StarshipInstructionService.withdrawTokenInstruction(
+      rootAccount.publicKey,
+      launchpadAddress,
+      from,
+      to,
+      amount,
+      starshipProgramId
+    );
+    transaction.add(withdrawTokenInstruction);
+
+    const txSign = await sendAndConfirmTransaction(connection, transaction, [
+      rootAccount,
+    ]);
+    console.info(
+      `Withdraw token from ${launchpadAddress}`,
+      '---',
+      txSign,
+      '\n'
+    );
+    return true;
+  }
+
   static async getLaunchpadAccountInfo(
     connection: Connection,
     launchpadAddress: PublicKey

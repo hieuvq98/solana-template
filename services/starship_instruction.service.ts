@@ -77,6 +77,10 @@ interface SetLaunchpadPurchaseRequest {
   maxPerUser: BN
 }
 
+interface WithdrawRequest {
+  amount: BN
+}
+
 export interface GlobalProfile {
   user: PublicKey;
   isBlacklisted: boolean;
@@ -406,6 +410,60 @@ export class StarshipInstructionService {
       <AccountMeta>{ pubkey: ownerAddress, isSigner: true, isWritable: false },
       <AccountMeta>{ pubkey: userAddress, isSigner: false, isWritable: false },
       <AccountMeta>{ pubkey: userGlobalProfileAddress, isSigner: false, isWritable: true, },
+    ];
+
+    return new TransactionInstruction({
+      keys,
+      data,
+      programId: starshipProgramId,
+    });
+  }
+
+  static withdrawSolInstruction(
+    ownerAddress: PublicKey,
+    launchpadAddress: PublicKey,
+    amount: BN,
+    starshipProgramId: PublicKey
+  ): TransactionInstruction {
+    const [launchpadSignerAddress, ]: [PublicKey, number] = StarshipInstructionService.findLaunchpadSignerAddress(launchpadAddress, starshipProgramId)
+    const request: WithdrawRequest = {
+      amount
+    };
+    const data = coder.instruction.encode("withdrawSol", request)
+    const keys: AccountMeta[] = [
+      <AccountMeta>{ pubkey: ownerAddress, isSigner: true, isWritable: false },
+      <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: false },
+      <AccountMeta>{ pubkey: launchpadSignerAddress, isSigner: false, isWritable: true },
+      <AccountMeta>{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ];
+
+    return new TransactionInstruction({
+      keys,
+      data,
+      programId: starshipProgramId,
+    });
+  }
+
+  static withdrawTokenInstruction(
+    ownerAddress: PublicKey,
+    launchpadAddress: PublicKey,
+    from: PublicKey,
+    to: PublicKey,
+    amount: BN,
+    starshipProgramId: PublicKey
+  ): TransactionInstruction {
+    const [launchpadSignerAddress, ]: [PublicKey, number] = StarshipInstructionService.findLaunchpadSignerAddress(launchpadAddress, starshipProgramId)
+    const request: WithdrawRequest = {
+      amount
+    };
+    const data = coder.instruction.encode("withdrawToken", request)
+    const keys: AccountMeta[] = [
+      <AccountMeta>{ pubkey: ownerAddress, isSigner: true, isWritable: false },
+      <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: false },
+      <AccountMeta>{ pubkey: launchpadSignerAddress, isSigner: false, isWritable: true },
+      <AccountMeta>{ pubkey: from, isSigner: false, isWritable: true },
+      <AccountMeta>{ pubkey: to, isSigner: false, isWritable: true },
+      <AccountMeta>{ pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     ];
 
     return new TransactionInstruction({

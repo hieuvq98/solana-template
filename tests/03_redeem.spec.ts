@@ -177,7 +177,6 @@ describe("Profile Test",() => {
       token1Mint.publicKey,
     )
 
-    try {
     await StarshipService.redeemBySol(
       connection,
       testAccount1,
@@ -188,9 +187,13 @@ describe("Profile Test",() => {
       PROGRAM_ID
     )
 
-    } catch(err) {
-      console.log(err)
-    }
+    await StarshipService.withdrawSol(
+      connection,
+      defaultAccount,
+      launchpadAddress,
+      new BN(1),
+      PROGRAM_ID
+    )
   })
 
   it("Redeem With Token!", async () => {
@@ -244,6 +247,16 @@ describe("Profile Test",() => {
       launchpadToken0Address,
       launchpadToken1Address,
       new BN(10000),
+      PROGRAM_ID
+    )
+
+    await StarshipService.withdrawToken(
+      connection,
+      defaultAccount,
+      launchpadAddress,
+      launchpadToken1Address,
+      testAccount1Token1Address,
+      new BN(1),
       PROGRAM_ID
     )
   })
