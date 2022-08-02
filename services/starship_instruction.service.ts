@@ -7,7 +7,7 @@ import {
   TransactionInstruction,
 } from '@solana/web3.js';
 import BN from 'bn.js';
-import { TOKEN_PROGRAM_ID } from '@coin98/solana-support-library';
+import { HashService, TOKEN_PROGRAM_ID } from '@coin98/solana-support-library';
 import StarshipIdl from "../target/idl/coin98_starship.json"
 
 const coder = new BorshCoder(StarshipIdl as Idl)
@@ -18,14 +18,11 @@ export interface Whitelist {
 }
 
 interface CreateGlobalProfileRequest {
-  nonce: number;
   user: PublicKey;
 }
 
 interface CreateLaunchpadRequest {
   launchpadPath: Buffer;
-  launchpadNonce: number;
-  signerNonce: number;
 }
 
 export const WHITELIST_LAYOUT = borsh.struct<Whitelist>([
@@ -34,7 +31,6 @@ export const WHITELIST_LAYOUT = borsh.struct<Whitelist>([
 ]);
 
 interface CreateLocalProfileRequest {
-  nonce: number;
   user: PublicKey;
 }
 
@@ -56,26 +52,28 @@ interface SetBlacklistRequest {
 }
 
 interface SetLaunchpadRequest {
-  priceInSolN: BN;
-  priceInSolD: BN;
-  priceInTokenN: BN;
-  priceInTokenD: BN;
-  tokenProgramId: PublicKey;
-  token0Mint: PublicKey;
-  token1Mint: PublicKey;
-  vaultProgramId: PublicKey;
-  vault: PublicKey;
-  vaultSigner: PublicKey;
-  vaultToken0: PublicKey;
-  vaultToken1: PublicKey;
-  isPrivateSale: boolean;
-  privateSaleSignature: Buffer;
+  priceN: BN;
+  priceD: BN;
   minPerTx: BN;
   maxPerUser: BN;
+  limitSale: BN;
   registerStartTimestamp: BN;
   registerEndTimestamp: BN;
   redeemStartTimestamp: BN;
   redeemEndTimestamp: BN;
+  privateSaleSignature: Buffer | null;
+}
+
+interface CreateLaunchpadPurchaseRequest {
+  tokenMint: PublicKey
+}
+
+interface SetLaunchpadPurchaseRequest {
+  limitSale: BN
+  priceN: BN
+  priceD: BN
+  minPerTx: BN
+  maxPerUser: BN
 }
 
 export interface GlobalProfile {
@@ -117,15 +115,14 @@ export interface LocalProfile {
 }
 
 export class StarshipInstructionService {
-  static createGlobalProfile(
+  static createGlobalProfileInstruction(
     payerAddress: PublicKey,
     userAddress: PublicKey,
-    userGlobalProfileAddress: PublicKey,
-    userGlobalProfileNonce: number,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
+    const [userGlobalProfileAddress,]: [PublicKey, number] = StarshipInstructionService.findUserGlobalProfileAddress(userAddress, starshipProgramId)
+
     const request: CreateGlobalProfileRequest = {
-      nonce: userGlobalProfileNonce,
       user: userAddress,
     };
     const data = coder.instruction.encode("createGlobalProfile", request)
@@ -143,18 +140,14 @@ export class StarshipInstructionService {
     });
   }
 
-  static createLaunchpad(
+  static createLaunchpadInstruction(
     payerAddress: PublicKey,
-    launchpadAddress: PublicKey,
     launchpadPath: Buffer,
-    launchpadNonce: number,
-    signerNonce: number,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
+    const [launchpadAddress, ]: [PublicKey, number] = StarshipInstructionService.findLaunchpadAddress(launchpadPath, starshipProgramId)
     const request: CreateLaunchpadRequest = {
       launchpadPath,
-      launchpadNonce: launchpadNonce,
-      signerNonce: signerNonce,
     };
     const data = coder.instruction.encode("createLaunchpad", request)
     const keys: AccountMeta[] = [
@@ -170,52 +163,34 @@ export class StarshipInstructionService {
     });
   }
 
-  static setLaunchpad(
-    launchpadAddress: PublicKey,
+  static setLaunchpadInstruction(
     rootAddress: PublicKey,
-    priceInSolN: BN,
-    priceInSolD: BN,
-    priceInTokenN: BN,
-    priceInTokenD: BN,
-    token0MintAddress: PublicKey,
-    token1MintAddress: PublicKey,
-    vaultProgramId: PublicKey,
-    vaultAddress: PublicKey,
-    vaultSignerAddress: PublicKey,
-    vaultToken0Address: PublicKey,
-    vaultToken1Address: PublicKey,
-    isPrivateSale: boolean,
-    privateSaleSignature: Buffer,
-    minPerTransaction: number,
-    maxPerUser: number,
-    registerStartTimestamp: number,
-    registerEndTimestamp: number,
-    redeemStartTimestamp: number,
-    redeemEndTimestamp: number,
+    launchpadAddress: PublicKey,
+    priceN: BN,
+    priceD: BN,
+    minPerTx: BN,
+    maxPerUser: BN,
+    limitSale: BN,
+    registerStartTimestamp: BN,
+    registerEndTimestamp: BN,
+    redeemStartTimestamp: BN,
+    redeemEndTimestamp: BN,
+    privateSaleSignature: Buffer | null,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
     const request: SetLaunchpadRequest = {
-      priceInSolN: priceInSolN,
-      priceInSolD: priceInSolD,
-      priceInTokenN: priceInTokenN,
-      priceInTokenD: priceInTokenD,
-      tokenProgramId: TOKEN_PROGRAM_ID,
-      token0Mint: token0MintAddress,
-      token1Mint: token1MintAddress,
-      vaultProgramId: vaultProgramId,
-      vault: vaultAddress,
-      vaultSigner: vaultSignerAddress,
-      vaultToken0: vaultToken0Address,
-      vaultToken1: vaultToken1Address,
-      isPrivateSale: isPrivateSale,
-      privateSaleSignature: privateSaleSignature,
-      minPerTx: new BN(minPerTransaction),
-      maxPerUser: new BN(maxPerUser),
-      registerStartTimestamp: new BN(registerStartTimestamp),
-      registerEndTimestamp: new BN(registerEndTimestamp),
-      redeemStartTimestamp: new BN(redeemStartTimestamp),
-      redeemEndTimestamp: new BN(redeemEndTimestamp),
+      priceN,
+      priceD,
+      minPerTx,
+      maxPerUser,
+      limitSale,
+      registerStartTimestamp,
+      registerEndTimestamp,
+      redeemStartTimestamp,
+      redeemEndTimestamp,
+      privateSaleSignature
     };
+
     const data = coder.instruction.encode("setLaunchpad", request)
     const keys: AccountMeta[] = [
       <AccountMeta>{ pubkey: rootAddress, isSigner: true, isWritable: false },
@@ -228,16 +203,69 @@ export class StarshipInstructionService {
     });
   }
 
-  static createLocalProfile(
+  static createLaunchpadPurchaseInstruction(
+    payerAddress: PublicKey,
+    launchpadAddress: PublicKey,
+    tokenMint: PublicKey,
+    starshipProgramId: PublicKey
+  ): TransactionInstruction {
+    const [launchpadPurchaseAddress,]: [PublicKey, number] = StarshipInstructionService.findLaunchpadPurchaseAddress(launchpadAddress, tokenMint, starshipProgramId)
+    const request: CreateLaunchpadPurchaseRequest = {
+      tokenMint,
+    };
+    const data = coder.instruction.encode("createLaunchpadPurchase", request)
+    const keys: AccountMeta[] = [
+      <AccountMeta>{ pubkey: payerAddress, isSigner: true, isWritable: true },
+      <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: false, },
+      <AccountMeta>{ pubkey: launchpadPurchaseAddress, isSigner: false, isWritable: true, },
+      <AccountMeta>{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false, },
+    ];
+
+    return new TransactionInstruction({
+      keys,
+      data,
+      programId: starshipProgramId,
+    });
+  }
+
+  static setLaunchpadPurchaseInstruction(
+    rootAddress: PublicKey,
+    launchpadPurchaseAddress: PublicKey,
+    limitSale: BN,
+    priceN: BN,
+    priceD: BN,
+    minPerTx: BN,
+    maxPerUser: BN,
+    starshipProgramId: PublicKey
+  ): TransactionInstruction {
+    const request: SetLaunchpadPurchaseRequest = {
+      priceN,
+      priceD,
+      minPerTx,
+      maxPerUser,
+      limitSale,
+    };
+
+    const data = coder.instruction.encode("setLaunchpadPurchase", request)
+    const keys: AccountMeta[] = [
+      <AccountMeta>{ pubkey: rootAddress, isSigner: true, isWritable: false },
+      <AccountMeta>{ pubkey: launchpadPurchaseAddress, isSigner: false, isWritable: true, },
+    ];
+    return new TransactionInstruction({
+      keys,
+      data,
+      programId: starshipProgramId,
+    });
+  }
+
+  static createLocalProfileInstruction(
     payerAddress: PublicKey,
     launchpadAddress: PublicKey,
     userAddress: PublicKey,
-    userLocalProfileAddress: PublicKey,
-    userLocalProfileNonce: number,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
+    const [userLocalProfileAddress, ]: [PublicKey, number] = StarshipInstructionService.findUserLocalProfileAddress(userAddress, launchpadAddress, starshipProgramId)
     const request: CreateLocalProfileRequest = {
-      nonce: userLocalProfileNonce,
       user: userAddress,
     };
     const data = coder.instruction.encode("createLocalProfile", request)
@@ -259,23 +287,23 @@ export class StarshipInstructionService {
     return coder.accounts.decode("Launchpad", data)
   }
 
-  static redeemBySol(
+  static redeemBySolInstruction(
     launchpadAddress: PublicKey,
-    launchpadSignerAddress: PublicKey,
     userAddress: PublicKey,
-    userGlobalProfileAddress: PublicKey,
-    userLocalProfileAddress: PublicKey,
-    userToken1Address: PublicKey,
-    vaultAddress: PublicKey,
-    vaultSignerAddress: PublicKey,
-    vaultToken1Address: PublicKey,
+    userTokenAddress: PublicKey,
+    launchpadTokenAddress: PublicKey,
     amount: number,
-    vaultProgramId: PublicKey,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
+    const [userGlobalProfileAddress,]: [PublicKey, number] = StarshipInstructionService.findUserGlobalProfileAddress(userAddress, starshipProgramId)
+    const [userLocalProfileAddress, ]: [PublicKey, number] = StarshipInstructionService.findUserLocalProfileAddress(userAddress, launchpadAddress, starshipProgramId)
+
+    const [launchpadSignerAddress, ]: [PublicKey, number] = StarshipInstructionService.findLaunchpadSignerAddress(launchpadAddress, starshipProgramId)
+
     const request: RedeemBySolRequest = {
       amount: new BN(amount),
     };
+
     const data = coder.instruction.encode("redeemBySol", request)
     const keys: AccountMeta[] = [
       <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: false, },
@@ -283,11 +311,8 @@ export class StarshipInstructionService {
       <AccountMeta>{ pubkey: userAddress, isSigner: true, isWritable: true },
       <AccountMeta>{ pubkey: userGlobalProfileAddress, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: userLocalProfileAddress, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: userToken1Address, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: vaultAddress, isSigner: false, isWritable: false },
-      <AccountMeta>{ pubkey: vaultSignerAddress, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: vaultToken1Address, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: vaultProgramId, isSigner: false, isWritable: false, },
+      <AccountMeta>{ pubkey: userTokenAddress, isSigner: false, isWritable: true, },
+      <AccountMeta>{ pubkey: launchpadTokenAddress, isSigner: false, isWritable: true, },
       <AccountMeta>{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false, },
     ];
@@ -299,39 +324,37 @@ export class StarshipInstructionService {
     });
   }
 
-  static redeemByToken(
+  static redeemByTokenInstruction(
     launchpadAddress: PublicKey,
-    launchpadSignerAddress: PublicKey,
+    launchpadPurchaseAddress: PublicKey,
     userAddress: PublicKey,
-    userGlobalProfileAddress: PublicKey,
-    userLocalProfileAddress: PublicKey,
     userToken0Address: PublicKey,
     userToken1Address: PublicKey,
-    vaultAddress: PublicKey,
-    vaultSignerAddress: PublicKey,
-    vaultToken0Address: PublicKey,
-    vaultToken1Address: PublicKey,
+    launchpadToken0Address: PublicKey,
+    launchpadToken1Address: PublicKey,
     amount: number,
-    vaultProgramId: PublicKey,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
+    const [userGlobalProfileAddress,]: [PublicKey, number] = StarshipInstructionService.findUserGlobalProfileAddress(userAddress, starshipProgramId)
+    const [userLocalProfileAddress, ]: [PublicKey, number] = StarshipInstructionService.findUserLocalProfileAddress(userAddress, launchpadAddress, starshipProgramId)
+
+    const [launchpadSignerAddress, ]: [PublicKey, number] = StarshipInstructionService.findLaunchpadSignerAddress(launchpadAddress, starshipProgramId)
+
     const request: RedeemByTokenRequest = {
       amount: new BN(amount),
     };
     const data = coder.instruction.encode("redeemByToken", request)
     const keys: AccountMeta[] = [
       <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: false, },
+      <AccountMeta>{ pubkey: launchpadPurchaseAddress, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: launchpadSignerAddress, isSigner: false, isWritable: true, },
       <AccountMeta>{ pubkey: userAddress, isSigner: true, isWritable: true },
       <AccountMeta>{ pubkey: userGlobalProfileAddress, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: userLocalProfileAddress, isSigner: false, isWritable: true, },
       <AccountMeta>{ pubkey: userToken0Address, isSigner: false, isWritable: true, },
       <AccountMeta>{ pubkey: userToken1Address, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: vaultAddress, isSigner: false, isWritable: false },
-      <AccountMeta>{ pubkey: vaultSignerAddress, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: vaultToken0Address, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: vaultToken1Address, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: vaultProgramId, isSigner: false, isWritable: false, },
+      <AccountMeta>{ pubkey: launchpadToken0Address, isSigner: false, isWritable: true, },
+      <AccountMeta>{ pubkey: launchpadToken1Address, isSigner: false, isWritable: true, },
       <AccountMeta>{ pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false, },
     ];
 
@@ -342,15 +365,16 @@ export class StarshipInstructionService {
     });
   }
 
-  static register(
+  static registerInstruction(
     launchpadAddress: PublicKey,
     userAddress: PublicKey,
     userIndex: number,
     userProofs: Buffer[],
-    userGlobalProfileAddress: PublicKey,
-    userLocalProfileAddress: PublicKey,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
+    const [userGlobalProfileAddress,]: [PublicKey, number] = StarshipInstructionService.findUserGlobalProfileAddress(userAddress, starshipProgramId)
+    const [userLocalProfileAddress, ]: [PublicKey, number] = StarshipInstructionService.findUserLocalProfileAddress(userAddress, launchpadAddress, starshipProgramId)
+
     const request: RegisterRequest = {
       index: userIndex,
       proofs: userProofs,
@@ -370,7 +394,7 @@ export class StarshipInstructionService {
     });
   }
 
-  static setBlacklist(
+  static setBlacklistInstruction(
     ownerAddress: PublicKey,
     userAddress: PublicKey,
     userGlobalProfileAddress: PublicKey,
@@ -393,4 +417,62 @@ export class StarshipInstructionService {
       programId: starshipProgramId,
     });
   }
+
+  static findLaunchpadDerivationPath(identifier: string): Buffer {
+    return HashService.sha256(identifier);
+  }
+  
+  static findLaunchpadAddress(
+    identifier: string | Buffer,
+    starshipProgramId: PublicKey
+  ): [PublicKey, number] {
+    const derivationPath: Buffer = typeof identifier == 'string' ? StarshipInstructionService.findLaunchpadDerivationPath(identifier) : identifier
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from([8, 201, 24, 140, 93, 100, 30, 148]), derivationPath],
+      starshipProgramId
+    );
+  }
+
+  static findLaunchpadPurchaseAddress(
+    launchpadAddress: PublicKey,
+    tokenMint: PublicKey,
+    starshipProgramId: PublicKey
+  ): [PublicKey, number] {
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from([68, 70, 141, 93, 102, 104, 120, 59, 54]), launchpadAddress.toBuffer(), tokenMint.toBuffer()],
+      starshipProgramId
+    );
+  }
+
+  static findLaunchpadSignerAddress(
+    launchpadAddress: PublicKey,
+    starshipProgramId: PublicKey
+  ): [PublicKey, number] {
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from([2, 151, 229, 53, 244, 77, 229, 7]), launchpadAddress.toBuffer()],
+      starshipProgramId
+    );
+  }
+
+  static findUserGlobalProfileAddress(
+    userAddress: PublicKey,
+    starshipProgramId: PublicKey
+  ): [PublicKey, number] {
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from([139, 126, 195, 157, 204, 134, 142, 146]), Buffer.from([32, 40, 118, 173, 164, 46, 192, 86]), userAddress.toBuffer()],
+      starshipProgramId
+    );
+  }
+
+  static findUserLocalProfileAddress(
+    userAddress: PublicKey,
+    launchpadAddress: PublicKey,
+    starshipProgramId: PublicKey
+  ): [PublicKey, number] {
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from([133, 177, 201, 78, 13, 152, 198, 180]), launchpadAddress.toBuffer(), userAddress.toBuffer()],
+      starshipProgramId
+    );
+  }
+
 }
