@@ -4,6 +4,7 @@ pub mod error;
 pub mod shared;
 pub mod state;
 pub mod external;
+pub mod events;
 
 use anchor_lang::prelude::*;
 use solana_program::keccak::hash;
@@ -17,6 +18,7 @@ use crate::context::*;
 use crate::state::WhitelistParams;
 use crate::external::anchor_spl_system::transfer_lamport;
 use crate::external::anchor_spl_token::transfer_token;
+use crate::events::*;
 
 declare_id!("FaJtq6SLQNwGgaggr7izJMgRYkxU1xwtCjnyESSXhvHG");
 
@@ -27,7 +29,7 @@ mod coin98_starship {
   #[access_control(verify_root(*ctx.accounts.root.key))]
   pub fn create_launchpad(
     ctx: Context<CreateLaunchpadContext>,
-    _launchpad_path: Vec<u8>,
+    launchpad_path: Vec<u8>,
     token_mint: Pubkey,
   ) -> Result<()> {
 
@@ -44,6 +46,11 @@ mod coin98_starship {
     launchpad.signer_nonce = signer_nonce;
     launchpad.owner = *ctx.accounts.root.key;
     launchpad.token_mint = token_mint;
+
+    emit!(CreateLaunchpadEvent{
+      launchpad_path,
+      token_mint
+    });
 
     Ok(())
   }
@@ -65,12 +72,10 @@ mod coin98_starship {
 
     let clock = Clock::get().unwrap();
 
-    /*
     require!(register_start_timestamp < register_end_timestamp, ErrorCode::InvalidInput);
     require!(clock.unix_timestamp < register_start_timestamp, ErrorCode::InvalidInput);
     require!(redeem_start_timestamp < redeem_end_timestamp, ErrorCode::InvalidInput);
     require!(register_end_timestamp < redeem_start_timestamp, ErrorCode::TimeOverlap);
-    */
 
     let launchpad = &mut ctx.accounts.launchpad;
 
@@ -90,6 +95,19 @@ mod coin98_starship {
       launchpad.private_sale_root = None;
     }
 
+    emit!(SetLaunchpadEvent{
+      price_n,
+      price_d,
+      min_per_tx,
+      max_per_user,
+      limit_sale,
+      register_start_timestamp,
+      register_end_timestamp,
+      redeem_start_timestamp,
+      redeem_end_timestamp,
+      private_sale_root
+    });
+
     Ok(())
   }
 
@@ -104,6 +122,10 @@ mod coin98_starship {
     launchpad_purchase.nonce = *ctx.bumps.get("launchpad_purchase").unwrap();
     launchpad_purchase.token_mint = token_mint;
     launchpad_purchase.launchpad = launchpad.key();
+
+    emit!(CreateLaunchpadPuchaseEvent{
+      token_mint
+    });
 
     Ok(())
   }
@@ -125,6 +147,14 @@ mod coin98_starship {
     launchpad_purchase.min_per_tx = min_per_tx;
     launchpad_purchase.max_per_user = max_per_user;
 
+    emit!(SetLaunchpadPuchaseEvent{
+      limit_sale,
+      price_n,
+      price_d,
+      min_per_tx,
+      max_per_user
+    });
+
     Ok(())
   }
 
@@ -136,6 +166,10 @@ mod coin98_starship {
     let launchpad = &mut ctx.accounts.launchpad;
 
     launchpad.is_active = is_active;
+
+    emit!(SetLaunchpadStatusEvent{
+      is_active
+    });
     Ok(())
   }
 
@@ -151,12 +185,10 @@ mod coin98_starship {
     let clock = Clock::get().unwrap();
 
     require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
-    /*
     require!(
       clock.unix_timestamp >= launchpad.register_start_timestamp && clock.unix_timestamp <= launchpad.register_end_timestamp,
       ErrorCode::NotInTimeframe,
     );
-    */
     if let Some(root) = &launchpad.private_sale_root {
       let whitelist = WhitelistParams {
         index,
@@ -164,12 +196,17 @@ mod coin98_starship {
       };
       let whitelist_data = whitelist.try_to_vec().unwrap();
       let leaf = hash(&whitelist_data[..]);
-      let is_valid_proof = shared::verify_proof(proofs, root.clone().try_into().unwrap(), leaf.to_bytes());
+      let is_valid_proof = shared::verify_proof(&proofs, &root.clone().try_into().unwrap(), &leaf.to_bytes());
       require!(is_valid_proof, ErrorCode::Unauthorized);
     }
 
     let local_profile = &mut ctx.accounts.local_profile;
     local_profile.is_registered = true;
+
+    emit!(RegisterEvent{
+      index,
+      proofs
+    });
 
     Ok(())
   }
@@ -191,12 +228,10 @@ mod coin98_starship {
     require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
     require!(launchpad.price_n > 0u64, ErrorCode::NotAllowed);
     require!(local_profile.is_registered, ErrorCode::Unauthorized);
-    /*
     require!(
       clock.unix_timestamp >= launchpad.redeem_start_timestamp && clock.unix_timestamp <= launchpad.redeem_end_timestamp,
       ErrorCode::NotInTimeframe,
     );
-    */
     require!(
       launchpad.min_per_tx == 0u64 || amount >= launchpad.min_per_tx,
       ErrorCode::MinAmountNotSatisfied,
@@ -225,6 +260,9 @@ mod coin98_starship {
     transfer_token(launchpad_signer, &launchpad_token_account.to_account_info(), &user_token_account, amount, &[seeds])
       .expect("Starship: CPI failed.");
 
+    emit!(RedeemBySolEvent{
+      amount
+    });
     Ok(())
   }
 
@@ -248,12 +286,10 @@ mod coin98_starship {
     require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
     require!(launchpad.price_n > 0u64, ErrorCode::NotAllowed);
     require!(local_profile.is_registered, ErrorCode::Unauthorized);
-    /*
     require!(
       clock.unix_timestamp >= launchpad.redeem_start_timestamp && clock.unix_timestamp <= launchpad.redeem_end_timestamp,
       ErrorCode::NotInTimeframe,
     );
-    */
     require!(
       launchpad.min_per_tx == 0u64 || amount >= launchpad.min_per_tx,
       ErrorCode::MinAmountNotSatisfied,
@@ -297,19 +333,28 @@ mod coin98_starship {
       )
       .expect("Starship: CPI failed.");
 
+    emit!(RedeemByTokenEvent{
+      amount
+    });
+
     Ok(())
   }
 
   #[access_control(verify_root(*ctx.accounts.root.key))]
   pub fn set_blacklist(
     ctx: Context<SetBlacklistContext>,
-    _user: Pubkey,
+    user: Pubkey,
     is_blacklisted: bool,
   ) -> Result<()> {
 
     let profile = &mut ctx.accounts.global_profile;
 
     profile.is_blacklisted = is_blacklisted;
+
+    emit!(SetBlacklistEvent{
+      user,
+      is_blacklisted
+    });
 
     Ok(())
   }
@@ -323,6 +368,10 @@ mod coin98_starship {
 
     profile.nonce = *ctx.bumps.get("global_profile").unwrap();
     profile.user = user;
+
+    emit!(CreateGlobalProfileEvent{
+      user
+    });
 
     Ok(())
   }
@@ -339,6 +388,10 @@ mod coin98_starship {
     profile.nonce = *ctx.bumps.get("local_profile").unwrap();
     profile.launchpad = launchpad.key();
     profile.user = user;
+
+    emit!(CreateLocalProfileEvent{
+      user
+    });
 
     Ok(())
   }
@@ -360,6 +413,10 @@ mod coin98_starship {
 
     transfer_lamport(&launchpad_signer.to_account_info(), &root.to_account_info(), amount, &[seeds])
       .expect("Starship: CPI failed.");
+
+    emit!(WithdrawSolEvent{
+      amount
+    });
 
     Ok(())
   }
@@ -383,6 +440,9 @@ mod coin98_starship {
     transfer_token(launchpad_signer, &from, &to, amount, &[seeds])
       .expect("Starship: CPI failed.");
 
+    emit!(WithdrawTokenEvent{
+      amount
+    });
     Ok(())
   }
 }
