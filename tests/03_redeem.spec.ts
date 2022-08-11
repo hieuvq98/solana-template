@@ -1,14 +1,12 @@
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { SolanaConfigService } from "@coin98/solana-support-library/config"
 import { StarshipService } from "../services/starship.service"
-import { VaultService } from "@coin98/vault-js";
 import BN from "bn.js";
 import { randomString, RedemptionTree, WhitelistParams, wait } from "./utils"
 import { SolanaService, SystemProgramService, TokenProgramService } from "@coin98/solana-support-library";
+import { StarshipInstructionService } from "../services/starship_instruction.service";
 
-const PROGRAM_ID: PublicKey = new PublicKey("Cyv1nUa7si2dds8KvoNcjyC7ey7dhsgv3cpmrTJHcyHv")
-
-const VAULT_PROGRAM_ID: PublicKey = new PublicKey("5WxdfYhjwLxL5aJb2J5EC8JXjxk6La5zmFaXq1eSS5UY")
+const PROGRAM_ID: PublicKey = new PublicKey("FaJtq6SLQNwGgaggr7izJMgRYkxU1xwtCjnyESSXhvHG")
 
 describe("Profile Test",() => {
   let connection = new Connection("http://localhost:8899", "confirmed")
@@ -39,28 +37,18 @@ describe("Profile Test",() => {
 
   const redemptiomTree = new RedemptionTree(whitelist)
 
-  const isPrivateSale: boolean = true
-  const saleLimitPerTransaction = 1
-  const saleLimitPerUser = 10
-
-  let vaultAddress: PublicKey
-  let vaultSignerAddress: PublicKey
-
-  let vaultToken1Address: PublicKey
-  let vaultToken0Address: PublicKey
+  const limitSale =  new BN("1000000000000")
+  const saleLimitPerTransaction = new BN(10000)
+  const saleLimitPerUser = new BN(100000000000)
+  const currentTime =  Math.floor((new Date()).valueOf() / 1000)
 
   let launchpadAddress: PublicKey
+  let launchpadPurchaseAddress: PublicKey
+  let launchpadToken0Address: PublicKey
+  let launchpadToken1Address: PublicKey
 
   before(async () => {
     defaultAccount = await SolanaConfigService.getDefaultAccount()
-    const vaultName = randomString(10)
-    
-    await VaultService.createVault(
-      connection,
-      defaultAccount,
-      vaultName,
-      VAULT_PROGRAM_ID
-    )
 
     await TokenProgramService.createTokenMint(
       connection,
@@ -79,109 +67,68 @@ describe("Profile Test",() => {
       defaultAccount.publicKey,
       null
     )
+  }) 
 
-    vaultAddress = (await VaultService.findVaultAddress(vaultName, VAULT_PROGRAM_ID))[0]
-    vaultSignerAddress = (await VaultService.findVaultSignerAddress(vaultAddress, VAULT_PROGRAM_ID))[0]
-    
-    vaultToken0Address = await TokenProgramService.createAssociatedTokenAccount(
+  beforeEach(async () => {
+    const launchpadName = randomString(10)
+    const registerStartTimestamp = new BN(currentTime + 10)
+    const registerEndTimestamp = new BN(currentTime + 20)
+    const redeemStartTimestamp = new BN(currentTime + 21)
+    const redeemEndTimestamp = new BN(currentTime + 100)
+    launchpadAddress = await StarshipService.createLaunchpad(
       connection,
       defaultAccount,
-      vaultSignerAddress,
-      token0Mint.publicKey
+      defaultAccount,
+      launchpadName,
+      token1Mint.publicKey,
+      priceInSolN,
+      priceInSolD,
+      saleLimitPerTransaction,
+      saleLimitPerUser,
+      limitSale,
+      registerStartTimestamp,
+      registerEndTimestamp,
+      redeemStartTimestamp,
+      redeemEndTimestamp,
+      redemptiomTree.getRoot().hash,
+      PROGRAM_ID
+    )
+    launchpadPurchaseAddress = await StarshipService.createLaunchpadPurchase(
+      connection,
+      defaultAccount,
+      launchpadAddress,
+      token0Mint.publicKey,
+      priceInTokenN,
+      priceInTokenD,
+      saleLimitPerTransaction,
+      saleLimitPerUser,
+      limitSale,
+      PROGRAM_ID
     )
 
-    await SystemProgramService.transfer(
+    await StarshipService.printLaunchpadAccountInfo(connection, launchpadAddress)
+    const [launchpadSignerAddress,]: [PublicKey, number] = StarshipInstructionService.findLaunchpadSignerAddress(launchpadAddress, PROGRAM_ID)
+
+    launchpadToken0Address = await TokenProgramService.createAssociatedTokenAccount(
       connection,
       defaultAccount,
-      vaultSignerAddress,
-      1000000000
+      launchpadSignerAddress,
+      token0Mint.publicKey,
     )
-    
-    vaultToken1Address = await TokenProgramService.createAssociatedTokenAccount(
+    launchpadToken1Address = await TokenProgramService.createAssociatedTokenAccount(
       connection,
       defaultAccount,
-      vaultSignerAddress,
-      token1Mint.publicKey
+      launchpadSignerAddress,
+      token1Mint.publicKey,
     )
 
     await TokenProgramService.mint(
       connection,
       defaultAccount,
       token1Mint.publicKey,
-      vaultToken1Address,
-      new BN(10000000)
+      launchpadToken1Address,
+      new BN("1000000000000")
     )
-  }) 
-
-  beforeEach(async () => {
-    const launchpadName = randomString(10)
-
-    const currentBlock = await connection.getSlot()
-    const currentTime = await connection.getBlockTime(currentBlock)
-
-    const registerStartTimestamp = currentTime + 2
-    const registerEndTimestamp = currentTime + 10
-    const redeemStartTimestamp = currentTime + 10
-    const redeemEndTimestamp = currentTime + 1000
-
-
-    launchpadAddress = (await StarshipService.findLaunchpadAddress(launchpadName, PROGRAM_ID))[0]
-
-    await StarshipService.createLaunchpad(
-      connection,
-      defaultAccount,
-      defaultAccount,
-      launchpadName,
-      priceInSolN,
-      priceInSolD,
-      priceInTokenN,
-      priceInTokenD,
-      token0Mint.publicKey,
-      token1Mint.publicKey,
-      VAULT_PROGRAM_ID,
-      vaultAddress,
-      vaultSignerAddress,
-      vaultToken0Address,
-      vaultToken1Address,
-      isPrivateSale,
-      redemptiomTree.getRoot().hash,
-      saleLimitPerTransaction,
-      saleLimitPerUser,
-      registerStartTimestamp,
-      registerEndTimestamp,
-      redeemStartTimestamp,
-      redeemEndTimestamp,
-      PROGRAM_ID
-    )
-
-    const [launchpadSignerAddress, ]: [PublicKey, number] = await StarshipService.findLaunchpadSignerAddress(launchpadAddress, PROGRAM_ID)
-
-    await VaultService.setVault(
-      connection,
-      defaultAccount,
-      vaultAddress,
-      [launchpadSignerAddress],
-      VAULT_PROGRAM_ID
-    )
-
-    await StarshipService.createLocalProfile(
-      connection,
-      defaultAccount,
-      launchpadAddress,
-      testAccount1.publicKey,
-      PROGRAM_ID
-    )
-
-    const [userGlobalProfileAddress]: [PublicKey, number] = await StarshipService.findUserGlobalProfileAddress(testAccount1.publicKey, PROGRAM_ID)
-
-    if (await SolanaService.isAddressAvailable(connection, userGlobalProfileAddress)) {
-      await StarshipService.createGlobalProfile(
-        connection,
-        defaultAccount,
-        testAccount1.publicKey,
-        PROGRAM_ID
-      )
-    }
   })
 
   it("Register!", async () => {
@@ -193,8 +140,6 @@ describe("Profile Test",() => {
     )
 
     const proofs = redemptiomTree.getProof(0)
-
-    await wait(2000)
 
     await StarshipService.register(
       connection,
@@ -216,7 +161,6 @@ describe("Profile Test",() => {
 
     const proofs = redemptiomTree.getProof(0)
 
-    await wait(2000)
     await StarshipService.register(
       connection,
       testAccount1,
@@ -226,7 +170,6 @@ describe("Profile Test",() => {
       PROGRAM_ID
     )
 
-
     const testAccount1Token1Address: PublicKey = await TokenProgramService.createAssociatedTokenAccount(
       connection,
       defaultAccount,
@@ -234,17 +177,21 @@ describe("Profile Test",() => {
       token1Mint.publicKey,
     )
 
-    await wait(20000)
-
     await StarshipService.redeemBySol(
       connection,
       testAccount1,
       launchpadAddress,
       testAccount1Token1Address,
-      vaultAddress,
-      vaultToken1Address,
-      4,
-      VAULT_PROGRAM_ID,
+      launchpadToken1Address,
+      100000,
+      PROGRAM_ID
+    )
+
+    await StarshipService.withdrawSol(
+      connection,
+      defaultAccount,
+      launchpadAddress,
+      new BN(1),
       PROGRAM_ID
     )
   })
@@ -259,7 +206,6 @@ describe("Profile Test",() => {
 
     const proofs = redemptiomTree.getProof(0)
 
-    await wait(2000)
     await StarshipService.register(
       connection,
       testAccount1,
@@ -291,19 +237,26 @@ describe("Profile Test",() => {
       token1Mint.publicKey,
     )
 
-    await wait(20000)
-
     await StarshipService.redeemByToken(
       connection,
       testAccount1,
       launchpadAddress,
+      launchpadPurchaseAddress,
       testAccount1Token0Address,
       testAccount1Token1Address,
-      vaultAddress,
-      vaultToken0Address,
-      vaultToken1Address,
-      4,
-      VAULT_PROGRAM_ID,
+      launchpadToken0Address,
+      launchpadToken1Address,
+      new BN(10000),
+      PROGRAM_ID
+    )
+
+    await StarshipService.withdrawToken(
+      connection,
+      defaultAccount,
+      launchpadAddress,
+      launchpadToken1Address,
+      testAccount1Token1Address,
+      new BN(1),
       PROGRAM_ID
     )
   })

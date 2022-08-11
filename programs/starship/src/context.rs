@@ -4,23 +4,22 @@ use crate::constant::{
   GLOBAL_PROFILE_SEED_1,
   GLOBAL_PROFILE_SEED_2,
   LAUNCHPAD_SEED_1,
+  LAUNCHPAD_PURCHASE_SEED_1,
   LOCAL_PROFILE_SEED_1,
   SIGNER_SEED_1,
 };
-use crate::error::{
-  ErrorCode,
-};
+use crate::error::ErrorCode;
 use crate::state::{
   GlobalProfile,
   Launchpad,
+  LaunchpadPurchase,
   LocalProfile,
 };
-use crate::external::spl_token::{
-  is_token_program,
-};
+use crate::external::spl_token::is_token_program;
+use crate::external::anchor_spl_token::TokenAccount;
 
 #[derive(Accounts)]
-#[instruction(launchpad_path: Vec<u8>, _launchpad_nonce: u8)]
+#[instruction(launchpad_path: Vec<u8>)]
 pub struct CreateLaunchpadContext<'info> {
 
   /// CHECK: program owner, verified using #access_control
@@ -50,6 +49,42 @@ pub struct SetLaunchpadContext<'info> {
 
   #[account(mut)]
   pub launchpad: Account<'info, Launchpad>,
+}
+
+#[derive(Accounts)]
+#[instruction(token_mint: Pubkey)]
+pub struct CreateLaunchpadPurchaseContext<'info> {
+
+  /// CHECK: program owner, verified using #access_control
+  #[account(mut)]
+  pub root: Signer<'info>,
+
+  pub launchpad: Account<'info, Launchpad>,
+
+  #[account(
+    init,
+    seeds = [
+      &LAUNCHPAD_PURCHASE_SEED_1,
+      launchpad.key().as_ref(),
+      token_mint.as_ref(),
+    ],
+    bump,
+    payer = root,
+    space = 16 + LaunchpadPurchase::LEN,
+  )]
+  pub launchpad_purchase: Account<'info, LaunchpadPurchase>,
+
+  pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct SetLaunchPadPurchaseContext<'info> {
+
+  /// CHECK: program owner, verified using #access_control
+  pub root: Signer<'info>,
+
+  #[account(mut)]
+  pub launchpad_purchase: Account<'info, LaunchpadPurchase>,
 }
 
 #[derive(Accounts)]
@@ -140,33 +175,15 @@ pub struct RedeemBySolContext<'info> {
 
   /// CHECK: User token account to receive token sale
   #[account(mut)]
-  pub user_token1: AccountInfo<'info>,
+  pub user_token_account: AccountInfo<'info>,
 
-  /// CHECK: Vault holding token for sale
-  #[account(
-    constraint = vault.key() == launchpad.vault @ErrorCode::InvalidAccount,
-  )]
-  pub vault: AccountInfo<'info>,
-
-  /// CHECK: PDA to hold vault asset
+  /// CHECK: User token account to receive token sale
   #[account(
     mut,
-    constraint = vault_signer.key() == launchpad.vault_signer @ErrorCode::InvalidAccount,
+    constraint = launchpad_token_account.owner == launchpad_signer.key() @ErrorCode::InvalidAccount,
+    constraint = launchpad_token_account.mint == launchpad.token_mint @ErrorCode::InvalidAccount,
   )]
-  pub vault_signer: AccountInfo<'info>,
-
-  /// CHECK: Vault token account to send token sale
-  #[account(
-    mut,
-    constraint = vault_token1.key() == launchpad.vault_token1 @ErrorCode::InvalidAccount,
-  )]
-  pub vault_token1: AccountInfo<'info>,
-
-  /// CHECK: Vault holding token for sale
-  #[account(
-    constraint = vault_program.key() == launchpad.vault_program_id @ErrorCode::InvalidAccount,
-  )]
-  pub vault_program: AccountInfo<'info>,
+  pub launchpad_token_account: Account<'info, TokenAccount>,
 
   pub system_program: Program<'info, System>,
 
@@ -181,6 +198,17 @@ pub struct RedeemBySolContext<'info> {
 pub struct RedeemByTokenContext<'info> {
 
   pub launchpad: Account<'info, Launchpad>,
+
+  /// CHECK: PDA to authorize launchpad tx
+  #[account(
+    seeds = [
+      &LAUNCHPAD_PURCHASE_SEED_1,
+      launchpad.key().as_ref(),
+      launchpad_purchase.token_mint.as_ref()
+    ],
+    bump = launchpad_purchase.nonce,
+  )]
+  pub launchpad_purchase: Account<'info, LaunchpadPurchase>,
 
   /// CHECK: PDA to authorize launchpad tx
   #[account(
@@ -221,45 +249,27 @@ pub struct RedeemByTokenContext<'info> {
 
   /// CHECK: User token account to buy token
   #[account(mut)]
-  pub user_token0: AccountInfo<'info>,
+  pub user_token0_account: AccountInfo<'info>,
 
   /// CHECK: User token account to receive token sale
   #[account(mut)]
-  pub user_token1: AccountInfo<'info>,
+  pub user_token1_account: AccountInfo<'info>,
 
-  /// CHECK: Vault holding token for sale
-  #[account(
-    constraint = vault.key() == launchpad.vault @ErrorCode::InvalidAccount,
-  )]
-  pub vault: AccountInfo<'info>,
-
-  /// CHECK: PDA to hold vault asset
+  /// CHECK: User token account to receive token sale
   #[account(
     mut,
-    constraint = vault_signer.key() == launchpad.vault_signer @ErrorCode::InvalidAccount,
+    constraint = launchpad_token0_account.owner == launchpad_signer.key() @ErrorCode::InvalidAccount,
+    constraint = launchpad_token0_account.mint == launchpad_purchase.token_mint @ErrorCode::InvalidAccount,
   )]
-  pub vault_signer: AccountInfo<'info>,
-
-  /// CHECK: Vault token account to receive token
+  pub launchpad_token0_account: Account<'info, TokenAccount>,
+  
   #[account(
     mut,
-    constraint = vault_token0.key() == launchpad.vault_token0 @ErrorCode::InvalidAccount,
+    constraint = launchpad_token1_account.owner == launchpad_signer.key() @ErrorCode::InvalidAccount,
+    constraint = launchpad_token1_account.mint == launchpad.token_mint @ErrorCode::InvalidAccount,
   )]
-  pub vault_token0: AccountInfo<'info>,
-
-  /// CHECK: Vault token account to send token sale
-  #[account(
-    mut,
-    constraint = vault_token1.key() == launchpad.vault_token1 @ErrorCode::InvalidAccount,
-  )]
-  pub vault_token1: AccountInfo<'info>,
-
-  /// CHECK: Vault holding token for sale
-  #[account(
-    constraint = vault_program.key() == launchpad.vault_program_id @ErrorCode::InvalidAccount,
-  )]
-  pub vault_program: AccountInfo<'info>,
-
+  pub launchpad_token1_account: Account<'info, TokenAccount>,
+  
   /// CHECK: Solana native Token Program
   #[account(
     constraint = is_token_program(&token_program) @ErrorCode::InvalidAccount,
@@ -289,7 +299,7 @@ pub struct SetBlacklistContext<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(_profile_nonce: u8, user: Pubkey)]
+#[instruction(user: Pubkey)]
 pub struct CreateGlobalProfileContext<'info> {
 
   /// CHECK: Fee payer
@@ -313,7 +323,7 @@ pub struct CreateGlobalProfileContext<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(_profile_nonce: u8, user: Pubkey)]
+#[instruction(user: Pubkey)]
 pub struct CreateLocalProfileContext<'info> {
 
   /// CHECK: Fee payer
@@ -338,3 +348,53 @@ pub struct CreateLocalProfileContext<'info> {
   pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+pub struct WithdrawSolContext<'info> {
+  /// CHECK: Root
+  #[account(mut)]
+  pub root: Signer<'info>,
+
+  pub launchpad: Account<'info, Launchpad>,
+
+  /// CHECK: PDA to authorize launchpad tx
+  #[account(
+    seeds = [
+      &SIGNER_SEED_1,
+      launchpad.key().as_ref(),
+    ],
+    bump = launchpad.signer_nonce,
+  )]
+  pub launchpad_signer: AccountInfo<'info>,
+
+  pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawTokenContext<'info> {
+  /// CHECK: Root
+  #[account(mut)]
+  pub root: Signer<'info>,
+
+  pub launchpad: Account<'info, Launchpad>,
+
+  /// CHECK: PDA to authorize launchpad tx
+  #[account(
+    seeds = [
+      &SIGNER_SEED_1,
+      launchpad.key().as_ref(),
+    ],
+    bump = launchpad.signer_nonce,
+  )]
+  pub launchpad_signer: AccountInfo<'info>,
+
+  /// CHECK: From token account
+  pub from: AccountInfo<'info>,
+  /// CHECK: To token account
+  pub to: AccountInfo<'info>,
+
+  /// CHECK: Solana native Token Program
+  #[account(
+    constraint = is_token_program(&token_program) @ErrorCode::InvalidAccount,
+  )]
+  pub token_program: AccountInfo<'info>,
+}

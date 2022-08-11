@@ -4,31 +4,39 @@ use anchor_lang::prelude::*;
 pub struct Launchpad {
   pub nonce: u8,
   pub signer_nonce: u8,
-  pub price_in_sol_n: u64,
-  pub price_in_sol_d: u64,
-  pub price_in_token_n: u64,
-  pub price_in_token_d: u64,
-  pub token0_mint: Pubkey,
-  pub token1_mint: Pubkey,
-  pub vault_program_id: Pubkey,
-  pub vault: Pubkey,
-  pub vault_signer: Pubkey,
-  pub vault_token0: Pubkey,
-  pub vault_token1: Pubkey,
-  pub is_private_sale: bool,
-  pub private_sale_signature: Vec<u8>,
+  pub is_active: bool,
+  pub price_n: u64,
+  pub price_d: u64,
   pub min_per_tx: u64,
   pub max_per_user: u64,
+  pub limit_sale: u64,
   pub register_start_timestamp: i64,
   pub register_end_timestamp: i64,
   pub redeem_start_timestamp: i64,
   pub redeem_end_timestamp: i64,
+  pub private_sale_root: Option<Vec<u8>>,
+  pub token_mint: Pubkey,
   pub owner: Pubkey, // For compability reason
   pub new_owner: Pubkey, // For compability reason
-  pub is_active: bool,
 }
 impl Launchpad {
-  pub const LEN: usize = 1 + 1 + 8 + 8 + 8 + 8 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 1 + 36 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 1;
+  pub const LEN: usize = 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 32 + 32;
+}
+
+#[account]
+pub struct LaunchpadPurchase {
+  pub nonce: u8,
+  pub limit_sale: u64,
+  pub price_n: u64,
+  pub price_d: u64,
+  pub min_per_tx: u64,
+  pub max_per_user: u64,
+  pub launchpad: Pubkey,
+  pub token_mint: Pubkey
+}
+
+impl LaunchpadPurchase {
+  pub const LEN: usize = 1 + 1 + 8 + 8 + 8 + 8 + 8 + 32 + 32;
 }
 
 #[account]
