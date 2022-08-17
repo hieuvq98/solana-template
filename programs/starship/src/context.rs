@@ -262,14 +262,14 @@ pub struct RedeemByTokenContext<'info> {
     constraint = launchpad_token0_account.mint == launchpad_purchase.token_mint @ErrorCode::InvalidAccount,
   )]
   pub launchpad_token0_account: Account<'info, TokenAccount>,
-  
+
   #[account(
     mut,
     constraint = launchpad_token1_account.owner == launchpad_signer.key() @ErrorCode::InvalidAccount,
     constraint = launchpad_token1_account.mint == launchpad.token_mint @ErrorCode::InvalidAccount,
   )]
   pub launchpad_token1_account: Account<'info, TokenAccount>,
-  
+
   /// CHECK: Solana native Token Program
   #[account(
     constraint = is_token_program(&token_program) @ErrorCode::InvalidAccount,
@@ -358,6 +358,7 @@ pub struct WithdrawSolContext<'info> {
 
   /// CHECK: PDA to authorize launchpad tx
   #[account(
+    mut,
     seeds = [
       &SIGNER_SEED_1,
       launchpad.key().as_ref(),
@@ -388,8 +389,10 @@ pub struct WithdrawTokenContext<'info> {
   pub launchpad_signer: AccountInfo<'info>,
 
   /// CHECK: From token account
+  #[account(mut)]
   pub from: AccountInfo<'info>,
   /// CHECK: To token account
+  #[account(mut)]
   pub to: AccountInfo<'info>,
 
   /// CHECK: Solana native Token Program

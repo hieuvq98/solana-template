@@ -1,7 +1,7 @@
 use anchor_lang::*;
 use anchor_lang::solana_program::system_program;
-use solana_program::instruction::{Instruction, AccountMeta};
-use solana_sdk::pubkey::{Pubkey, self};
+use solana_program::instruction::{Instruction};
+use solana_sdk::pubkey::{Pubkey};
 
 pub const LAUNCHPAD_SEED_1: &[u8] = &[8, 201, 24, 140, 93, 100, 30, 148];
 pub const LAUNCHPAD_PURCHASE_SEED_1: &[u8] = &[68, 70, 141, 93, 102, 104, 120, 59, 54];
