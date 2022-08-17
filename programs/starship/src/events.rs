@@ -27,11 +27,11 @@ pub struct CreateLaunchpadPuchaseEvent {
 
 #[event]
 pub struct SetLaunchpadPuchaseEvent {
-  pub limit_sale: u64,
   pub price_n: u64,
   pub price_d: u64,
   pub min_per_tx: u64,
-  pub max_per_user: u64
+  pub max_per_user: u64,
+  pub limit_sale: u64,
 }
 
 #[event]
