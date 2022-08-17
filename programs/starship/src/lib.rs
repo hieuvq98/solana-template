@@ -195,6 +195,7 @@ mod coin98_starship {
     let global_profile = &ctx.accounts.global_profile;
     let clock = Clock::get().unwrap();
 
+    require!(launchpad.is_active, ErrorCode::Inactive);
     require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
     require!(
       clock.unix_timestamp >= launchpad.register_start_timestamp && clock.unix_timestamp <= launchpad.register_end_timestamp,
@@ -236,6 +237,7 @@ mod coin98_starship {
     let launchpad_token_account = &ctx.accounts.launchpad_token_account;
     let clock = Clock::get().unwrap();
 
+    require!(launchpad.is_active, ErrorCode::Inactive);
     require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
     require!(launchpad.price_n > 0u64, ErrorCode::NotAllowed);
     require!(local_profile.is_registered, ErrorCode::Unauthorized);
@@ -293,6 +295,7 @@ mod coin98_starship {
     let launchpad_token1_account = &ctx.accounts.launchpad_token1_account;
     let clock = Clock::get().unwrap();
 
+    require!(launchpad.is_active, ErrorCode::Inactive);
     require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
     require!(launchpad_purchase.price_n > 0u64, ErrorCode::NotAllowed);
     require!(local_profile.is_registered, ErrorCode::Unauthorized);

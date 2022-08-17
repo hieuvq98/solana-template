@@ -29,4 +29,7 @@ pub enum ErrorCode {
 
   #[msg("Starship: Not an owner.")]
   Unauthorized,
+
+  #[msg("Starship: Inactive.")]
+  Inactive,
 }

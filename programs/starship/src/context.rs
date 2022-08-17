@@ -136,7 +136,7 @@ pub struct RedeemBySolContext<'info> {
   pub launchpad: Account<'info, Launchpad>,
 
   /// CHECK: PDA to authorize launchpad tx
-  #[account(
+  #[account(mut,
     seeds = [
       &SIGNER_SEED_1,
       launchpad.key().as_ref(),
@@ -146,7 +146,7 @@ pub struct RedeemBySolContext<'info> {
   pub launchpad_signer: AccountInfo<'info>,
 
   /// CHECK: public user
-  #[account(signer)]
+  #[account(mut, signer)]
   pub user: AccountInfo<'info>,
 
   #[account(
