@@ -4,41 +4,12 @@ pragma solidity ^0.8.0;
 import "./lib/Common.sol";
 import "./lib/Token.sol";
 import "./lib/Module.sol";
+import "./lib/Merkle.sol";
 
 /**
- * @dev These functions deal with verification of Merkle trees (hash trees),
+ * @dev Starship allows user to create raising fund campaign in a FIFO manner
  */
-library MerkleProof {
-  /**
-    * @dev Returns true if a `leaf` can be proved to be a part of a Merkle tree
-    * defined by `root`. For this, a `proof` must be provided, containing
-    * sibling hashes on the branch from the leaf to the root of the tree. Each
-    * pair of leaves and each pair of pre-images are assumed to be sorted.
-    */
-  function verify(bytes32[] memory proof, bytes32 root, bytes32 leaf) internal pure returns (bool) {
-    bytes32 computedHash = leaf;
-
-    for (uint256 i = 0; i < proof.length; i++) {
-      bytes32 proofElement = proof[i];
-
-      if (computedHash <= proofElement) {
-        // Hash(current computed hash + current element of the proof)
-        computedHash = keccak256(abi.encodePacked(computedHash, proofElement));
-      } else {
-        // Hash(current element of the proof + current computed hash)
-        computedHash = keccak256(abi.encodePacked(proofElement, computedHash));
-      }
-    }
-
-    // Check if the computed hash (root) is equal to the provided root
-    return computedHash == root;
-  }
-}
-
-/**
- * @dev BaryonPad allows user to create raising fund campaign in a FIFO manner
- */
-contract BaryonPad is Ownable, Payable {
+contract Starship is Ownable, Payable {
 
   mapping(uint256 => mapping(address => uint256)) private _allowances;
   mapping(uint256 => mapping(address => uint256)) private _exchangeTokenAllowances;
@@ -90,11 +61,11 @@ contract BaryonPad is Ownable, Payable {
   function register(uint256 launchpadId_, uint256 index_, bytes32[] calldata proofs_) external {
     LaunchpadData storage launchpad = _launchpadDatas[launchpadId_];
 
-    require(launchpad.isActive, "BaryonPad: Invalid launchpad");
-    require(launchpad.registerStartTimestamp <= block.timestamp && launchpad.registerEndTimestamp >= block.timestamp, "BaryonPad: Not registration time");
+    require(launchpad.isActive, "Starship: Invalid launchpad");
+    require(launchpad.registerStartTimestamp <= block.timestamp && launchpad.registerEndTimestamp >= block.timestamp, "Starship: Not registration time");
     if(launchpad.isPrivateSale) {
       bytes32 node = keccak256(abi.encodePacked(index_, _msgSender()));
-      require(MerkleProof.verify(proofs_, launchpad.privateSaleSignature, node), "BaryonPad: Invalid proof");
+      require(MerkleProof.verify(proofs_, launchpad.privateSaleSignature, node), "Starship: Invalid proof");
     }
 
     _registrations[launchpadId_][_msgSender()] = true;
@@ -108,33 +79,33 @@ contract BaryonPad is Ownable, Payable {
   /// @param amount_ Amount of {token_} user use to exchange
   function redeem(uint256 launchpadId_, address token_, uint256 amount_) external payable {
     LaunchpadData storage launchpad = _launchpadDatas[launchpadId_];
-    require(launchpad.isActive, "BaryonPad: Invalid launchpad");
-    require(launchpad.redeemStartTimestamp <= block.timestamp && launchpad.redeemEndTimestamp >= block.timestamp, "BaryonPad: Not redemption time");
-    require(_registrations[launchpadId_][_msgSender()], "BaryonPad: Not registered");
+    require(launchpad.isActive, "Starship: Invalid launchpad");
+    require(launchpad.redeemStartTimestamp <= block.timestamp && launchpad.redeemEndTimestamp >= block.timestamp, "Starship: Not redemption time");
+    require(_registrations[launchpadId_][_msgSender()], "Starship: Not registered");
 
-    require(launchpad.minPerTx == 0 || amount_ >= launchpad.minPerTx, "BaryonPad: Not meet minimum amount");
+    require(launchpad.minPerTx == 0 || amount_ >= launchpad.minPerTx, "Starship: Not meet minimum amount");
     uint256 allowance = _allowances[launchpadId_][_msgSender()];
     uint256 newAllowance = allowance.add(amount_);
-    require(launchpad.maxPerUser == 0 || newAllowance <= launchpad.maxPerUser, "BaryonPad: Allowance reached");
+    require(launchpad.maxPerUser == 0 || newAllowance <= launchpad.maxPerUser, "Starship: Allowance reached");
 
     if(_msgValue() > 0) {
-      require(launchpad.priceN > 0, "BaryonPad: Native token not supported");
-      require(token_ == address(0), "BaryonPad: Token not supported");
+      require(launchpad.priceN > 0, "Starship: Native token not supported");
+      require(token_ == address(0), "Starship: Token not supported");
       uint256 sendingAmount = amount_.mul(launchpad.priceN);
       sendingAmount = sendingAmount.div(launchpad.priceD);
       uint256 tokenAllowance = _exchangeTokenAllowances[launchpadId_][token_];
       uint256 newTokenAllowance = tokenAllowance.add(sendingAmount);
-      require(launchpad.maxAmount == 0 || newTokenAllowance <= launchpad.maxAmount, "BaryonPad: Allowance reached");
-      require(_msgValue() == sendingAmount, "BaryonPad: Insuffient fund");
+      require(launchpad.maxAmount == 0 || newTokenAllowance <= launchpad.maxAmount, "Starship: Allowance reached");
+      require(_msgValue() == sendingAmount, "Starship: Insuffient fund");
     }
     else {
       ExchangeToken storage exchangeToken = _exchangeTokens[launchpadId_][token_];
-      require(exchangeToken.priceN > 0, "BaryonPad: Token not supported");
+      require(exchangeToken.priceN > 0, "Starship: Token not supported");
       uint256 sendingAmount = amount_.mul(exchangeToken.priceN);
       sendingAmount = sendingAmount.div(exchangeToken.priceD);
       uint256 tokenAllowance = _exchangeTokenAllowances[launchpadId_][token_];
       uint256 newTokenAllowance = tokenAllowance.add(sendingAmount);
-      require(exchangeToken.maxAmount == 0 || newTokenAllowance <= exchangeToken.maxAmount, "BaryonPad: Allowance reached");
+      require(exchangeToken.maxAmount == 0 || newTokenAllowance <= exchangeToken.maxAmount, "Starship: Allowance reached");
       IERC20(exchangeToken.token).safeTransferFrom(_msgSender(), address(this), sendingAmount);
     }
 
@@ -166,18 +137,18 @@ contract BaryonPad is Ownable, Payable {
     uint256[] memory timestamps_
   ) external onlyOwner {
 
-    require(timestamps_.length == 4, "BaryonPad: Invalid arguments");
+    require(timestamps_.length == 4, "Starship: Invalid arguments");
 
-    require(priceD_ > 0 || priceN_ == 0, "BaryonPad: Invalid price");
-    require(block.timestamp <= timestamps_[0], "BaryonPad: Time must be set in the future");
-    require(timestamps_[0] < timestamps_[1], "BaryonPad: Invalid registration time");
-    require(timestamps_[1] <= timestamps_[2], "BaryonPad: Registration and sale time overlap");
-    require(timestamps_[2] < timestamps_[3], "BaryonPad: Invalid sale time");
+    require(priceD_ > 0 || priceN_ == 0, "Starship: Invalid price");
+    require(block.timestamp <= timestamps_[0], "Starship: Time must be set in the future");
+    require(timestamps_[0] < timestamps_[1], "Starship: Invalid registration time");
+    require(timestamps_[1] <= timestamps_[2], "Starship: Registration and sale time overlap");
+    require(timestamps_[2] < timestamps_[3], "Starship: Invalid sale time");
 
     LaunchpadData storage launchpad = _launchpadDatas[launchpadId_];
 
     if (launchpad.registerStartTimestamp != 0) {
-      require(launchpad.registerStartTimestamp >= block.timestamp, "BaryonPad: Launchpad finalized");
+      require(launchpad.registerStartTimestamp >= block.timestamp, "Starship: Launchpad finalized");
     }
 
     launchpad.token = token_;
@@ -224,8 +195,8 @@ contract BaryonPad is Ownable, Payable {
     uint256 launchpadId_, address token_, uint256 priceN_, uint256 priceD_,
     uint256 maxAmount_
   ) external onlyOwner {
-    require(token_ != address(0), "BaryonPad: Token is zero address");
-    require(priceD_ > 0 || priceN_ == 0, "BaryonPad: Invalid price");
+    require(token_ != address(0), "Starship: Token is zero address");
+    require(priceD_ > 0 || priceN_ == 0, "Starship: Invalid price");
 
     ExchangeToken storage exchangeToken = _exchangeTokens[launchpadId_][token_];
     exchangeToken.token = token_;
@@ -241,7 +212,7 @@ contract BaryonPad is Ownable, Payable {
   /// @param destination_ recipient address to receive the fund
   /// @param amount_ amount of fund to withdaw
   function withdraw(address token_, address destination_, uint256 amount_) external onlyOwner {
-    require(destination_ != address(0), "BaryonPad: Destination is zero address");
+    require(destination_ != address(0), "Starship: Destination is zero address");
 
     uint256 availableAmount;
     if(token_ == address(0)) {
@@ -250,7 +221,7 @@ contract BaryonPad is Ownable, Payable {
       availableAmount = IERC20(token_).balanceOf(address(this));
     }
 
-    require(amount_ <= availableAmount, "BaryonPad: Not enough balance");
+    require(amount_ <= availableAmount, "Starship: Not enough balance");
     if(token_ == address(0)) {
       destination_.call{value:amount_}("");
     } else {
@@ -265,7 +236,7 @@ contract BaryonPad is Ownable, Payable {
   /// @param destination_ recipient address to receive the fund
   /// @param tokenId_ ID of NFT to withdraw
   function withdrawNft(address token_, address destination_, uint256 tokenId_) external onlyOwner {
-    require(destination_ != address(0), "BaryonPad: destination is zero address");
+    require(destination_ != address(0), "Starship: destination is zero address");
 
     IERC721(token_).transferFrom(address(this), destination_, tokenId_);
 
@@ -273,7 +244,7 @@ contract BaryonPad is Ownable, Payable {
   }
 }
 
-contract BaryonPadFactory is Ownable, Payable {
+contract StarshipFactory is Ownable, Payable {
 
   using SafeERC20 for IERC20;
 
@@ -300,11 +271,10 @@ contract BaryonPadFactory is Ownable, Payable {
   /// @dev get byte code of launchpad Contract
   /// @param owner_ Owner of newly created pad
   function _getBytecode(address owner_) private pure returns (bytes memory) {
-    bytes memory bytecode = type(BaryonPad).creationCode;
+    bytes memory bytecode = type(Starship).creationCode;
 
     return abi.encodePacked(bytecode, abi.encode(owner_));
   }
-
 
   /// @dev deploy new contract with CREATE2 opcode
   /// @param code_ code of contract
@@ -336,7 +306,7 @@ contract BaryonPadFactory is Ownable, Payable {
   /// @param destination_ recipient address to receive the fund
   /// @param amount_ amount of fund to withdaw
   function withdraw(address token_, address destination_, uint256 amount_) external onlyOwner {
-    require(destination_ != address(0), "BaryonPad: Destination is zero address");
+    require(destination_ != address(0), "Starship: Destination is zero address");
 
     uint256 availableAmount;
     if(token_ == address(0)) {
@@ -345,7 +315,7 @@ contract BaryonPadFactory is Ownable, Payable {
       availableAmount = IERC20(token_).balanceOf(address(this));
     }
 
-    require(amount_ <= availableAmount, "BaryonPad: Not enough balance");
+    require(amount_ <= availableAmount, "Starship: Not enough balance");
 
     if(token_ == address(0)) {
       destination_.call{value:amount_}("");
@@ -361,7 +331,7 @@ contract BaryonPadFactory is Ownable, Payable {
   /// @param destination_ recipient address to receive the fund
   /// @param tokenId_ ID of NFT to withdraw
   function withdrawNft(address token_, address destination_, uint256 tokenId_) external onlyOwner {
-    require(destination_ != address(0), "BaryonPad: destination is zero address");
+    require(destination_ != address(0), "Starship: destination is zero address");
 
     IERC721(token_).transferFrom(address(this), destination_, tokenId_);
 
