@@ -1,0 +1,19 @@
+{
+  "name": "@coin98/starship-evm",
+  "version": "1.0.0",
+  "description": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coin98/coin98-starship.git"
+  },
+  "author": "Coin98",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/coin98/coin98-starship/issues"
+  },
+  "homepage": "https://github.com/coin98/coin98-starship#readme",
+  "scripts": {},
+  "devDependencies": {
+    "hardhat": "^2.10.2"
+  }
+}

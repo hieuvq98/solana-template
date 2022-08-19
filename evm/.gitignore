@@ -1,0 +1,15 @@
+# FOLDERS
+.DS_Store
+.anchor
+artifacts
+build
+cache
+dist
+node_modules
+target
+
+# FILES
+.npmrc
+Cargo.lock
+package-lock.json
+yarn.lock
