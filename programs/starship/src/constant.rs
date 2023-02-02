@@ -4,6 +4,8 @@ pub const ROOT_KEYS: &[&str] = &[
   "GnzQDYm2gvwZ8wRVmuwVAeHx5T44ovC735vDgSNhumzQ",
 ];
 
+pub const FEE_OWNER: &str = "GnzQDYm2gvwZ8wRVmuwVAeHx5T44ovC735vDgSNhumzQ";
+
 pub const GLOBAL_PROFILE_SEED_1: &[u8] = &[139, 126, 195, 157, 204, 134, 142, 146];
 pub const GLOBAL_PROFILE_SEED_2: &[u8] = &[32, 40, 118, 173, 164, 46, 192, 86];
 pub const LAUNCHPAD_SEED_1: &[u8] = &[8, 201, 24, 140, 93, 100, 30, 148];

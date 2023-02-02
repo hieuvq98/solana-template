@@ -18,6 +18,8 @@ pub struct Launchpad {
   pub token_mint: Pubkey,
   pub owner: Pubkey, // For compability reason
   pub new_owner: Pubkey, // For compability reason
+  pub protocol_fee: u64,
+  pub sharing_fee: u64,
 }
 impl Launchpad {
   pub const LEN: usize = 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 32 + 32;

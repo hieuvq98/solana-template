@@ -7,6 +7,7 @@ use crate::constant::{
   LAUNCHPAD_PURCHASE_SEED_1,
   LOCAL_PROFILE_SEED_1,
   SIGNER_SEED_1,
+  FEE_OWNER,
 };
 use crate::error::ErrorCode;
 use crate::state::{
@@ -48,6 +49,29 @@ pub struct SetLaunchpadContext<'info> {
   pub root: Signer<'info>,
 
   #[account(mut)]
+  pub launchpad: Account<'info, Launchpad>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateProtocolFeeContext<'info> {
+
+  /// CHECK: program owner, verified using #access_control
+  pub root: Signer<'info>,
+
+  #[account(mut)]
+  pub launchpad: Account<'info, Launchpad>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateSharingFeeContext<'info> {
+
+  /// CHECK: program owner, verified using #access_control
+  pub owner: Signer<'info>,
+
+  #[account(
+    mut,
+    constraint = launchpad.owner == owner.key()
+  )]
   pub launchpad: Account<'info, Launchpad>,
 }
 
@@ -185,6 +209,10 @@ pub struct RedeemBySolContext<'info> {
   )]
   pub launchpad_token_account: Account<'info, TokenAccount>,
 
+  /// CHECK: Fee owner of system fee
+  #[account(mut)]
+  pub fee_owner: AccountInfo<'info>,
+
   pub system_program: Program<'info, System>,
 
   /// CHECK: Solana native Token Program
@@ -197,7 +225,7 @@ pub struct RedeemBySolContext<'info> {
 #[derive(Accounts)]
 pub struct RedeemByTokenContext<'info> {
 
-  pub launchpad: Account<'info, Launchpad>,
+  pub launchpad: Box<Account<'info, Launchpad>>,
 
   /// CHECK: PDA to authorize launchpad tx
   #[account(
@@ -208,7 +236,7 @@ pub struct RedeemByTokenContext<'info> {
     ],
     bump = launchpad_purchase.nonce,
   )]
-  pub launchpad_purchase: Account<'info, LaunchpadPurchase>,
+  pub launchpad_purchase: Box<Account<'info, LaunchpadPurchase>>,
 
   /// CHECK: PDA to authorize launchpad tx
   #[account(
@@ -269,6 +297,13 @@ pub struct RedeemByTokenContext<'info> {
     constraint = launchpad_token1_account.mint == launchpad.token_mint @ErrorCode::InvalidAccount,
   )]
   pub launchpad_token1_account: Account<'info, TokenAccount>,
+
+  #[account(
+    mut,
+    constraint = fee_owner_token0_account.owner.to_string() == FEE_OWNER @ErrorCode::InvalidAccount,
+    constraint = fee_owner_token0_account.mint == launchpad_purchase.token_mint @ErrorCode::InvalidAccount,
+  )]
+  pub fee_owner_token0_account: Account<'info, TokenAccount>,
 
   /// CHECK: Solana native Token Program
   #[account(

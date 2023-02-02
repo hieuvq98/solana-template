@@ -32,4 +32,10 @@ pub enum ErrorCode {
 
   #[msg("Starship: Inactive.")]
   Inactive,
+
+  #[msg("Starship: Max fee reached.")]
+  MaxFeeReached,
+
+  #[msg("Starship: Invalid Fee Owner.")]
+  InvalidFeeOwner,
 }
