@@ -39,6 +39,8 @@ pub fn create_launchpad_data_instruction(
     owner: &Pubkey,
     path: Vec<u8>,
     token_mint: &Pubkey,
+    protocol_fee: u64,
+    sharing_fee: u64
 )-> Instruction{
 
     let launchpad_path = path.clone();
@@ -51,8 +53,10 @@ pub fn create_launchpad_data_instruction(
     }.to_account_metas(None);
 
     let data = starship::instruction::CreateLaunchpad {
-        launchpad_path: launchpad_path,
-        token_mint: *token_mint
+        launchpad_path,
+        token_mint: *token_mint,
+        protocol_fee,
+        sharing_fee
     }.data();
 
     let instruction = Instruction {

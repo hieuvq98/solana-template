@@ -6,7 +6,7 @@ import { randomString, RedemptionTree, WhitelistParams } from "./utils"
 import { TokenProgramService } from "@coin98/solana-support-library";
 import { StarshipInstructionService } from "../services/starship_instruction.service";
 
-const PROGRAM_ID: PublicKey = new PublicKey("FaJtq6SLQNwGgaggr7izJMgRYkxU1xwtCjnyESSXhvHG")
+const PROGRAM_ID: PublicKey = new PublicKey("ASMck7GjbLUkmsesypj4mA9s3ye311AqfAk7tFjHmaSh")
 
 describe("Profile Test",() => {
   let connection = new Connection("http://localhost:8899", "confirmed")
@@ -91,6 +91,8 @@ describe("Profile Test",() => {
       redeemStartTimestamp,
       redeemEndTimestamp,
       redemptiomTree.getRoot().hash,
+      new BN(2000),
+      new BN(10),
       PROGRAM_ID
     )
 

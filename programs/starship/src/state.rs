@@ -22,7 +22,7 @@ pub struct Launchpad {
   pub sharing_fee: u64,
 }
 impl Launchpad {
-  pub const LEN: usize = 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 32 + 32;
+  pub const LEN: usize = 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 32 + 32 + 8 + 8;
 }
 
 #[account]

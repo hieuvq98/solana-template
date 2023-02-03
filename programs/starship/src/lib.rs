@@ -27,7 +27,7 @@ use crate::external::anchor_spl_token::{
 };
 use crate::events::*;
 
-declare_id!("FaJtq6SLQNwGgaggr7izJMgRYkxU1xwtCjnyESSXhvHG");
+declare_id!("ASMck7GjbLUkmsesypj4mA9s3ye311AqfAk7tFjHmaSh");
 
 #[program]
 mod coin98_starship {
@@ -92,6 +92,7 @@ mod coin98_starship {
 
     let launchpad = &mut ctx.accounts.launchpad;
 
+    launchpad.is_active = true;
     launchpad.price_n = price_n;
     launchpad.price_d = price_d;
     launchpad.min_per_tx = min_per_tx;

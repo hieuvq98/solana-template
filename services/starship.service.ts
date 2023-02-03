@@ -2,13 +2,12 @@ import {
   Connection,
   Keypair,
   PublicKey,
-  sendAndConfirmTransaction,
   Transaction
 } from '@solana/web3.js';
 import BN from 'bn.js';
 import moment from 'moment';
 import { HashService, BorshService, SolanaService } from '@coin98/solana-support-library';
-import { MerkleNode, MerkleTree } from '@coin98/solana-support-library/core';
+import { MerkleNode, MerkleTree, sendTransaction } from '@coin98/solana-support-library/core';
 import { VaultService } from '@coin98/vault-js';
 import {
   Launchpad,
@@ -35,7 +34,7 @@ export class StarshipService {
     );
     transaction.add(createGlobalProfileInstruction);
 
-    const txSign = await sendAndConfirmTransaction(connection, transaction, [
+    const txSign = await sendTransaction(connection, transaction, [
       payerAccount,
     ]);
     console.info(`Created global profile ${globalProfileAddress.toBase58()} of user ${userAddress.toBase58()}`, '---', txSign, '\n');
@@ -58,6 +57,8 @@ export class StarshipService {
     redeemStartTimestamp: BN,
     redeemEndTimestamp: BN,
     privateSaleSignature: Buffer | null,
+    protocolFee: BN,
+    sharingFee: BN,
     starshipProgramId: PublicKey
   ): Promise<PublicKey> {
     const transaction = new Transaction();
@@ -70,6 +71,8 @@ export class StarshipService {
         payerAccount.publicKey,
         launchpadDerivationPath,
         tokenMint,
+        protocolFee,
+        sharingFee,
         starshipProgramId
       );
       transaction.add(createLaunchpadInstruction);
@@ -91,12 +94,64 @@ export class StarshipService {
     );
     transaction.add(setLaunchpadInstruction);
 
-    const txSign = await sendAndConfirmTransaction(connection, transaction, [
+    const txSign = await sendTransaction(connection, transaction, [
       payerAccount,
       rootAccount,
     ]);
     console.info(`Created Launchpad ${launchpadAddress.toBase58()}`, '---', txSign, '\n');
     return launchpadAddress;
+  }
+
+  static async updateProtocolFee(
+    connection: Connection,
+    rootAccount: Keypair,
+    launchpadAddress: PublicKey,
+    protocolFee: BN,
+    starshipProgramId: PublicKey
+  ): Promise<string> {
+    const transaction: Transaction = new Transaction()
+
+    const updateProtocolFeeInstruction = StarshipInstructionService.updateProtocolFeeInstruction(
+      rootAccount.publicKey,
+      launchpadAddress,
+      protocolFee,
+      starshipProgramId
+    )
+
+    transaction.add(updateProtocolFeeInstruction)
+
+    const txSign = await sendTransaction(connection, transaction, [
+      rootAccount,
+    ]);
+    console.info(`Update protocol fee ${launchpadAddress.toBase58()} - ${protocolFee.toString()}`, '---', txSign, '\n');
+
+    return txSign
+  }
+
+  static async updateSharingFee(
+    connection: Connection,
+    ownerAccount: Keypair,
+    launchpadAddress: PublicKey,
+    sharingFee: BN,
+    starshipProgramId: PublicKey
+  ): Promise<string> {
+    const transaction: Transaction = new Transaction()
+
+    const updateSharingFeeInstruction = StarshipInstructionService.updateSharingFeeInstruction(
+      ownerAccount.publicKey,
+      launchpadAddress,
+      sharingFee,
+      starshipProgramId
+    )
+
+    transaction.add(updateSharingFeeInstruction)
+
+    const txSign = await sendTransaction(connection, transaction, [
+      ownerAccount,
+    ]);
+    console.info(`Update sharing fee ${launchpadAddress.toBase58()} - ${sharingFee.toString()}`, '---', txSign, '\n');
+
+    return txSign
   }
 
   static async createLaunchpadPurchase(
@@ -135,7 +190,7 @@ export class StarshipService {
     );
     transaction.add(setLaunchpadPurchaseInstruction);
 
-    const txSign = await sendAndConfirmTransaction(connection, transaction, [
+    const txSign = await sendTransaction(connection, transaction, [
       rootAccount,
     ]);
     console.info(`Created Launchpad purchase ${lauchpadPurchaseAddress.toBase58()} of launchpad address ${launchpadAddress.toString()} - token mint ${tokenMint.toString()}`, '---', txSign, '\n');
@@ -165,7 +220,7 @@ export class StarshipService {
     );
     transaction.add(instruction);
 
-    const txSign = await sendAndConfirmTransaction(connection, transaction, [
+    const txSign = await sendTransaction(connection, transaction, [
       payerAccount,
     ]);
     console.info(`Created local profile ${localProfileAddress.toBase58()} of user ${userAddress.toBase58()}`, '---', txSign, '\n');
@@ -178,6 +233,7 @@ export class StarshipService {
     launchpadAddress: PublicKey,
     userTokenAddress: PublicKey,
     launchpadTokenAddress: PublicKey,
+    feeOwner: PublicKey,
     amount: number,
     starshipProgramId: PublicKey
   ): Promise<string> {
@@ -188,12 +244,13 @@ export class StarshipService {
       launchpadAddress,
       userTokenAddress,
       launchpadTokenAddress,
+      feeOwner,
       amount,
       starshipProgramId
     );
     transaction.add(redeemBySolInstruction);
 
-    const txSign = await sendAndConfirmTransaction(connection, transaction, [
+    const txSign = await sendTransaction(connection, transaction, [
       payerAccount,
     ]);
     console.info(`Redeemed ${amount} tokens using SOL`, '---', txSign, '\n');
@@ -209,6 +266,7 @@ export class StarshipService {
     userToken1Address: PublicKey,
     launchpadToken0Address: PublicKey,
     launchpadToken1Address: PublicKey,
+    feeOwnerToken0Address: PublicKey,
     amount: BN,
     starshipProgramId: PublicKey
   ): Promise<string> {
@@ -222,12 +280,13 @@ export class StarshipService {
       userToken1Address,
       launchpadToken0Address,
       launchpadToken1Address,
+      feeOwnerToken0Address,
       amount,
       starshipProgramId
     );
     transaction.add(redeemByTokenInstruction);
 
-    const txSign = await sendAndConfirmTransaction(connection, transaction, [
+    const txSign = await sendTransaction(connection, transaction, [
       payerAccount,
     ]);
     console.info(`Redeemed ${amount} tokens using Token0`, '---', txSign, '\n');
@@ -285,7 +344,7 @@ export class StarshipService {
     );
     transaction.add(registerInstruction);
 
-    const txSign = await sendAndConfirmTransaction(connection, transaction, [
+    const txSign = await sendTransaction(connection, transaction, [
       payerAccount,
     ]);
     console.info(
@@ -327,7 +386,7 @@ export class StarshipService {
     );
     transaction.add(setBlacklistInstruction);
 
-    const txSign = await sendAndConfirmTransaction(connection, transaction, [
+    const txSign = await sendTransaction(connection, transaction, [
       payerAccount,
     ]);
     console.info(
@@ -356,7 +415,7 @@ export class StarshipService {
     );
     transaction.add(withdrawSolInstruction);
 
-    const txSign = await sendAndConfirmTransaction(connection, transaction, [
+    const txSign = await sendTransaction(connection, transaction, [
       rootAccount,
     ]);
     console.info(
@@ -389,7 +448,7 @@ export class StarshipService {
     );
     transaction.add(withdrawTokenInstruction);
 
-    const txSign = await sendAndConfirmTransaction(connection, transaction, [
+    const txSign = await sendTransaction(connection, transaction, [
       rootAccount,
     ]);
     console.info(

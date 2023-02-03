@@ -1,13 +1,13 @@
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { SolanaConfigService } from "@coin98/solana-support-library/config"
 import { StarshipService } from "../services/starship.service"
-import BN, { max } from "bn.js";
+import BN from "bn.js";
 import { randomString, RedemptionTree, WhitelistParams } from "./utils"
 import { TokenProgramService } from "@coin98/solana-support-library";
 import assert from "assert"
 import { Launchpad, StarshipInstructionService } from "../services/starship_instruction.service";
 
-const PROGRAM_ID: PublicKey = new PublicKey("FaJtq6SLQNwGgaggr7izJMgRYkxU1xwtCjnyESSXhvHG")
+const PROGRAM_ID: PublicKey = new PublicKey("ASMck7GjbLUkmsesypj4mA9s3ye311AqfAk7tFjHmaSh")
 
 describe("Launchpad Test",() => {
   let connection = new Connection("http://localhost:8899", "confirmed")
@@ -92,6 +92,8 @@ describe("Launchpad Test",() => {
       redeemStartTimestamp,
       redeemEndTimestamp,
       redemptiomTree.getRoot().hash,
+      new BN(2000),
+      new BN(10),
       PROGRAM_ID
     )
     const launchpadInfo:  Launchpad = await StarshipService.getLaunchpadAccountInfo(connection, launchpadAddress)
@@ -121,6 +123,8 @@ describe("Launchpad Test",() => {
       redeemStartTimestamp,
       redeemEndTimestamp,
       redemptiomTree.getRoot().hash,
+      new BN(2000),
+      new BN(10),
       PROGRAM_ID
     )
 

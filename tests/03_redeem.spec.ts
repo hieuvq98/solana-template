@@ -6,7 +6,9 @@ import { randomString, RedemptionTree, WhitelistParams, wait } from "./utils"
 import { SolanaService, SystemProgramService, TokenProgramService } from "@coin98/solana-support-library";
 import { StarshipInstructionService } from "../services/starship_instruction.service";
 
-const PROGRAM_ID: PublicKey = new PublicKey("FaJtq6SLQNwGgaggr7izJMgRYkxU1xwtCjnyESSXhvHG")
+const PROGRAM_ID: PublicKey = new PublicKey("ASMck7GjbLUkmsesypj4mA9s3ye311AqfAk7tFjHmaSh")
+
+const FEE_OWNER: PublicKey = new PublicKey("GnzQDYm2gvwZ8wRVmuwVAeHx5T44ovC735vDgSNhumzQ")
 
 describe("Profile Test",() => {
   let connection = new Connection("http://localhost:8899", "confirmed")
@@ -91,6 +93,8 @@ describe("Profile Test",() => {
       redeemStartTimestamp,
       redeemEndTimestamp,
       redemptiomTree.getRoot().hash,
+      new BN(1000),
+      new BN(10),
       PROGRAM_ID
     )
     launchpadPurchaseAddress = await StarshipService.createLaunchpadPurchase(
@@ -183,6 +187,7 @@ describe("Profile Test",() => {
       launchpadAddress,
       testAccount1Token1Address,
       launchpadToken1Address,
+      FEE_OWNER,
       100000,
       PROGRAM_ID
     )
@@ -222,6 +227,13 @@ describe("Profile Test",() => {
       token0Mint.publicKey,
     )
 
+    const feeOwnerToken0Address: PublicKey = await TokenProgramService.createAssociatedTokenAccount(
+      connection,
+      defaultAccount,
+      FEE_OWNER,
+      token0Mint.publicKey,
+    )
+
     await TokenProgramService.mint(
       connection,
       defaultAccount,
@@ -246,6 +258,7 @@ describe("Profile Test",() => {
       testAccount1Token1Address,
       launchpadToken0Address,
       launchpadToken1Address,
+      feeOwnerToken0Address,
       new BN(10000),
       PROGRAM_ID
     )

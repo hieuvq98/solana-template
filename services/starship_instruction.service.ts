@@ -24,6 +24,8 @@ interface CreateGlobalProfileRequest {
 interface CreateLaunchpadRequest {
   launchpadPath: Buffer;
   tokenMint: PublicKey
+  protocolFee: BN
+  sharingFee: BN
 }
 
 export const WHITELIST_LAYOUT = borsh.struct<Whitelist>([
@@ -65,6 +67,13 @@ interface SetLaunchpadRequest {
   privateSaleRoot: Buffer | null;
 }
 
+interface UpdateProtocolFeeRequest {
+  protocolFee: BN
+}
+interface UpdateSharingFeeRequest {
+  sharingFee: BN
+}
+
 interface CreateLaunchpadPurchaseRequest {
   tokenMint: PublicKey
 }
@@ -104,6 +113,8 @@ export interface Launchpad {
   tokenMint: Buffer;
   owner: Buffer;
   newOwner: Buffer;
+  protocolFee: BN
+  sharingFee: BN
 }
 
 export interface LocalProfile {
@@ -143,12 +154,16 @@ export class StarshipInstructionService {
     payerAddress: PublicKey,
     launchpadPath: Buffer,
     tokenMint: PublicKey,
+    protocolFee: BN,
+    sharingFee: BN,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
     const [launchpadAddress, ]: [PublicKey, number] = StarshipInstructionService.findLaunchpadAddress(launchpadPath, starshipProgramId)
     const request: CreateLaunchpadRequest = {
       launchpadPath,
-      tokenMint
+      tokenMint,
+      protocolFee,
+      sharingFee
     };
     const data = coder.instruction.encode("createLaunchpad", request)
     const keys: AccountMeta[] = [
@@ -197,6 +212,52 @@ export class StarshipInstructionService {
       <AccountMeta>{ pubkey: rootAddress, isSigner: true, isWritable: false },
       <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: true, },
     ];
+    return new TransactionInstruction({
+      keys,
+      data,
+      programId: starshipProgramId,
+    });
+  }
+
+  static updateProtocolFeeInstruction(
+    payerAddress: PublicKey,
+    launchpadAddress: PublicKey,
+    protocolFee: BN,
+    starshipProgramId: PublicKey
+  ): TransactionInstruction {
+    const request: UpdateProtocolFeeRequest = {
+      protocolFee
+    };
+    const data = coder.instruction.encode("updateProtocolFee", request)
+    const keys: AccountMeta[] = [
+      <AccountMeta>{ pubkey: payerAddress, isSigner: true, isWritable: false },
+      <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: true, },
+      <AccountMeta>{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false, },
+    ];
+
+    return new TransactionInstruction({
+      keys,
+      data,
+      programId: starshipProgramId,
+    });
+  }
+
+  static updateSharingFeeInstruction(
+    payerAddress: PublicKey,
+    launchpadAddress: PublicKey,
+    sharingFee: BN,
+    starshipProgramId: PublicKey
+  ): TransactionInstruction {
+    const request: UpdateSharingFeeRequest = {
+      sharingFee
+    };
+    const data = coder.instruction.encode("updateSharingFee", request)
+    const keys: AccountMeta[] = [
+      <AccountMeta>{ pubkey: payerAddress, isSigner: true, isWritable: false },
+      <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: true, },
+      <AccountMeta>{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false, },
+    ];
+
     return new TransactionInstruction({
       keys,
       data,
@@ -293,6 +354,7 @@ export class StarshipInstructionService {
     launchpadAddress: PublicKey,
     userTokenAddress: PublicKey,
     launchpadTokenAddress: PublicKey,
+    feeOwnerAddress: PublicKey,
     amount: number,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
@@ -314,6 +376,7 @@ export class StarshipInstructionService {
       <AccountMeta>{ pubkey: userLocalProfileAddress, isSigner: false, isWritable: true, },
       <AccountMeta>{ pubkey: userTokenAddress, isSigner: false, isWritable: true, },
       <AccountMeta>{ pubkey: launchpadTokenAddress, isSigner: false, isWritable: true, },
+      <AccountMeta>{ pubkey: feeOwnerAddress, isSigner: false, isWritable: true, },
       <AccountMeta>{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false, },
       <AccountMeta>{ pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false, },
     ];
@@ -333,6 +396,7 @@ export class StarshipInstructionService {
     userToken1Address: PublicKey,
     launchpadToken0Address: PublicKey,
     launchpadToken1Address: PublicKey,
+    feeOwnerToken0Address: PublicKey,
     amount: BN,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
@@ -356,6 +420,7 @@ export class StarshipInstructionService {
       <AccountMeta>{ pubkey: userToken1Address, isSigner: false, isWritable: true, },
       <AccountMeta>{ pubkey: launchpadToken0Address, isSigner: false, isWritable: true, },
       <AccountMeta>{ pubkey: launchpadToken1Address, isSigner: false, isWritable: true, },
+      <AccountMeta>{ pubkey: feeOwnerToken0Address, isSigner: false, isWritable: true, },
       <AccountMeta>{ pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false, },
     ];
 
