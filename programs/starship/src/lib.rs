@@ -133,6 +133,11 @@ mod coin98_starship {
     let launchpad = &mut ctx.accounts.launchpad;
 
     launchpad.protocol_fee = protocol_fee;
+
+    emit!(UpdateProtocolFeeEvent{
+      protocol_fee
+    });
+    
     Ok(())
   }
 
@@ -143,6 +148,11 @@ mod coin98_starship {
     let launchpad = &mut ctx.accounts.launchpad;
 
     launchpad.sharing_fee = sharing_fee;
+
+    emit!(UpdateSharingFeeEvent{
+      sharing_fee
+    });
+    
     Ok(())
   }
 

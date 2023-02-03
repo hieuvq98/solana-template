@@ -21,6 +21,16 @@ pub struct SetLaunchpadEvent {
 }
 
 #[event]
+pub struct UpdateProtocolFeeEvent {
+  pub protocol_fee: u64
+}
+
+#[event]
+pub struct UpdateSharingFeeEvent {
+  pub sharing_fee: u64
+}
+
+#[event]
 pub struct CreateLaunchpadPuchaseEvent {
   pub token_mint: Pubkey
 }
