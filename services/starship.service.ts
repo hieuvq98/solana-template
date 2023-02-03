@@ -501,6 +501,8 @@ export class StarshipService {
     console.info(`Token mint:         ${accountData.tokenMint.toString()}`);
     console.info(`Owner:              ${accountData.owner.toString()}`);
     console.info(`New Owner:          ${accountData.newOwner.toString()}`);
+    console.info(`Protocol Fee:       ${accountData.protocolFee.toString()}`);
+    console.info(`Sharing Fee:        ${accountData.sharingFee.toString()}`);
     console.info('');
   }
 

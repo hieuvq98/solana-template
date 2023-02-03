@@ -35,6 +35,8 @@ async fn register_before_schedule(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64, // protocol fee
+      10u64 // sharing fee
     );
 
     let user1_data = starship::state::WhitelistParams{
@@ -129,6 +131,8 @@ async fn register_after_schedule(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64, // protocol fee
+      10u64 // sharing fee
     );
 
     let user1_data = starship::state::WhitelistParams{
@@ -231,6 +235,8 @@ async fn stranger_register(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64, // protocol fee
+      10u64 // sharing fee
     );
 
     let user1_data = starship::state::WhitelistParams{
@@ -296,7 +302,3 @@ async fn stranger_register(){
       Err(_) => {},
     };
 }
-
-
-
-

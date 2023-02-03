@@ -42,7 +42,6 @@ describe("Profile Test",() => {
   const limitSale =  new BN("1000000000000")
   const saleLimitPerTransaction = new BN(10000)
   const saleLimitPerUser = new BN(100000000000)
-  const currentTime =  Math.floor((new Date()).valueOf() / 1000)
 
   let launchpadAddress: PublicKey
   let launchpadPurchaseAddress: PublicKey
@@ -56,7 +55,7 @@ describe("Profile Test",() => {
       connection,
       defaultAccount,
       token0Mint,
-      2,
+      6,
       defaultAccount.publicKey,
       null
     )
@@ -65,17 +64,18 @@ describe("Profile Test",() => {
       connection,
       defaultAccount,
       token1Mint,
-      2,
+      6,
       defaultAccount.publicKey,
       null
     )
   }) 
 
   beforeEach(async () => {
+    const currentTime =  Math.floor((new Date()).valueOf() / 1000)
     const launchpadName = randomString(10)
-    const registerStartTimestamp = new BN(currentTime + 10)
-    const registerEndTimestamp = new BN(currentTime + 20)
-    const redeemStartTimestamp = new BN(currentTime + 21)
+    const registerStartTimestamp = new BN(currentTime + 3)
+    const registerEndTimestamp = new BN(currentTime + 10)
+    const redeemStartTimestamp = new BN(currentTime + 12)
     const redeemEndTimestamp = new BN(currentTime + 100)
     launchpadAddress = await StarshipService.createLaunchpad(
       connection,
@@ -145,6 +145,8 @@ describe("Profile Test",() => {
 
     const proofs = redemptiomTree.getProof(0)
 
+    await wait(2000)
+
     await StarshipService.register(
       connection,
       testAccount1,
@@ -164,6 +166,7 @@ describe("Profile Test",() => {
     )
 
     const proofs = redemptiomTree.getProof(0)
+    await wait(2000)
 
     await StarshipService.register(
       connection,
@@ -180,6 +183,7 @@ describe("Profile Test",() => {
       testAccount1.publicKey,
       token1Mint.publicKey,
     )
+    await wait(10000)
 
     await StarshipService.redeemBySol(
       connection,
@@ -210,6 +214,7 @@ describe("Profile Test",() => {
     )
 
     const proofs = redemptiomTree.getProof(0)
+    await wait(2000)
 
     await StarshipService.register(
       connection,
@@ -239,7 +244,7 @@ describe("Profile Test",() => {
       defaultAccount,
       token0Mint.publicKey,
       testAccount1.publicKey,
-      new BN(10000)
+      new BN(10000000000)
     )
 
     const testAccount1Token1Address: PublicKey = await TokenProgramService.createAssociatedTokenAccount(
@@ -248,6 +253,8 @@ describe("Profile Test",() => {
       testAccount1.publicKey,
       token1Mint.publicKey,
     )
+
+    await wait(10000)
 
     await StarshipService.redeemByToken(
       connection,
@@ -259,7 +266,7 @@ describe("Profile Test",() => {
       launchpadToken0Address,
       launchpadToken1Address,
       feeOwnerToken0Address,
-      new BN(10000),
+      new BN(1000000),
       PROGRAM_ID
     )
 
