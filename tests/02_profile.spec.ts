@@ -98,19 +98,8 @@ describe("Profile Test",() => {
 
   })
 
-  it("Create Global Profile!", async () => {
-    const userKey: Keypair = Keypair.generate()
-
-    await StarshipService.createGlobalProfile(
-      connection,
-      defaultAccount,
-      userKey.publicKey,
-      PROGRAM_ID
-    )
-  })
-
-  it("Create Local Profile!", async () => {
-    await StarshipService.createLocalProfile(
+  it("Create User Profile!", async () => {
+    await StarshipService.createUserProfile(
       connection,
       defaultAccount,
       launchpadAddress,

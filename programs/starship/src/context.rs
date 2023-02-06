@@ -125,6 +125,7 @@ pub struct SetLaunchPadPurchaseContext<'info> {
 
   /// CHECK: PDA to authorize launchpad tx
   #[account(
+    mut,
     seeds = [
       &LAUNCHPAD_PURCHASE_SEED_1,
       launchpad.key().as_ref(),

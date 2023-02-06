@@ -3,7 +3,7 @@ import { SolanaConfigService } from "@coin98/solana-support-library/config"
 import { StarshipService } from "../services/starship.service"
 import BN from "bn.js";
 import { randomString, RedemptionTree, WhitelistParams } from "./utils"
-import { TokenProgramService } from "@coin98/solana-support-library";
+import { SystemProgramService, TokenProgramService } from "@coin98/solana-support-library";
 import assert from "assert"
 import { Launchpad, StarshipInstructionService } from "../services/starship_instruction.service";
 
@@ -46,11 +46,6 @@ describe("Launchpad Test",() => {
   const limitSale =  new BN("1000000000000")
   const saleLimitPerTransaction = new BN(10000)
   const saleLimitPerUser = new BN(100000000000)
-  const currentTime =  Math.floor((new Date()).valueOf() / 1000)
-  const registerStartTimestamp = new BN(currentTime + 2)
-  const registerEndTimestamp = new BN(currentTime + 5)
-  const redeemStartTimestamp = new BN(currentTime + 6)
-  const redeemEndTimestamp = new BN(currentTime + 100)
 
   before(async () => {
     defaultAccount = await SolanaConfigService.getDefaultAccount()
@@ -74,6 +69,12 @@ describe("Launchpad Test",() => {
   })
 
   it("Create Launchpad!", async() => {
+    const currentTime =  Math.floor((new Date()).valueOf() / 1000)
+    const registerStartTimestamp = new BN(currentTime + 2)
+    const registerEndTimestamp = new BN(currentTime + 5)
+    const redeemStartTimestamp = new BN(currentTime + 6)
+    const redeemEndTimestamp = new BN(currentTime + 100)
+
     const launchpadName = randomString(10)
 
     const launchpadAddress = await StarshipService.createLaunchpad(
@@ -105,6 +106,11 @@ describe("Launchpad Test",() => {
   })
 
   it("Create Launchpad Purchase!", async() => {
+    const currentTime =  Math.floor((new Date()).valueOf() / 1000)
+    const registerStartTimestamp = new BN(currentTime + 2)
+    const registerEndTimestamp = new BN(currentTime + 5)
+    const redeemStartTimestamp = new BN(currentTime + 6)
+    const redeemEndTimestamp = new BN(currentTime + 100)
     const launchpadName = randomString(10)
 
     const launchpadAddress = await StarshipService.createLaunchpad(
@@ -145,5 +151,59 @@ describe("Launchpad Test",() => {
 
     assert(launchpadInfo.maxPerUser.toString() == saleLimitPerUser.toString(), "Starship: Invalid max per user")
     assert(launchpadInfo.minPerTx.toString() == saleLimitPerTransaction.toString(), "Starship: Invalid min per transaction")
+  })
+
+  it("Transfer ownership", async () => {
+    const currentTime =  Math.floor((new Date()).valueOf() / 1000)
+    const registerStartTimestamp = new BN(currentTime + 2)
+    const registerEndTimestamp = new BN(currentTime + 5)
+    const redeemStartTimestamp = new BN(currentTime + 6)
+    const redeemEndTimestamp = new BN(currentTime + 100)
+    const launchpadName = randomString(10)
+
+    const launchpadAddress = await StarshipService.createLaunchpad(
+      connection,
+      defaultAccount,
+      defaultAccount,
+      launchpadName,
+      token0Mint.publicKey,
+      priceInSolN,
+      priceInSolD,
+      saleLimitPerTransaction,
+      saleLimitPerUser,
+      limitSale,
+      registerStartTimestamp,
+      registerEndTimestamp,
+      redeemStartTimestamp,
+      redeemEndTimestamp,
+      redemptiomTree.getRoot().hash,
+      new BN(2000),
+      new BN(10),
+      PROGRAM_ID
+    )
+
+    const newOwner = Keypair.generate()
+
+    await SystemProgramService.transfer(
+      connection,
+      defaultAccount,
+      newOwner.publicKey,
+      1000000000
+    )
+
+    await StarshipService.transferLaunchpadOwnership(
+      connection,
+      defaultAccount,
+      launchpadAddress,
+      newOwner.publicKey,
+      PROGRAM_ID
+    )
+
+    await StarshipService.acceptLaunchpadOwnership(
+      connection,
+      newOwner,
+      launchpadAddress,
+      PROGRAM_ID
+    )
   })
 })
