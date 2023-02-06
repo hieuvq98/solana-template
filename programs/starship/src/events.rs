@@ -72,12 +72,7 @@ pub struct SetBlacklistEvent {
 }
 
 #[event]
-pub struct CreateGlobalProfileEvent {
-  pub user: Pubkey,
-}
-
-#[event]
-pub struct CreateLocalProfileEvent {
+pub struct CreateUserProfileEvent {
   pub user: Pubkey,
 }
 

@@ -1,20 +1,17 @@
 use anchor_lang::prelude::*;
 
 use crate::constant::{
-  GLOBAL_PROFILE_SEED_1,
-  GLOBAL_PROFILE_SEED_2,
   LAUNCHPAD_SEED_1,
   LAUNCHPAD_PURCHASE_SEED_1,
-  LOCAL_PROFILE_SEED_1,
+  USER_PROFILE_SEED_1,
   SIGNER_SEED_1,
   FEE_OWNER,
 };
 use crate::error::ErrorCode;
 use crate::state::{
-  GlobalProfile,
   Launchpad,
   LaunchpadPurchase,
-  LocalProfile,
+  UserProfile,
 };
 use crate::external::spl_token::is_token_program;
 use crate::external::anchor_spl_token::TokenAccount;
@@ -46,7 +43,7 @@ pub struct CreateLaunchpadContext<'info> {
 pub struct SetLaunchpadContext<'info> {
 
   /// CHECK: program owner, verified using #access_control
-  pub root: Signer<'info>,
+  pub owner: Signer<'info>,
 
   #[account(mut)]
   pub launchpad: Account<'info, Launchpad>,
@@ -68,10 +65,7 @@ pub struct UpdateSharingFeeContext<'info> {
   /// CHECK: program owner, verified using #access_control
   pub owner: Signer<'info>,
 
-  #[account(
-    mut,
-    constraint = launchpad.owner == owner.key()
-  )]
+  #[account(mut)]
   pub launchpad: Account<'info, Launchpad>,
 }
 
@@ -81,7 +75,7 @@ pub struct CreateLaunchpadPurchaseContext<'info> {
 
   /// CHECK: program owner, verified using #access_control
   #[account(mut)]
-  pub root: Signer<'info>,
+  pub owner: Signer<'info>,
 
   pub launchpad: Account<'info, Launchpad>,
 
@@ -93,7 +87,7 @@ pub struct CreateLaunchpadPurchaseContext<'info> {
       token_mint.as_ref(),
     ],
     bump,
-    payer = root,
+    payer = owner,
     space = 16 + LaunchpadPurchase::LEN,
   )]
   pub launchpad_purchase: Account<'info, LaunchpadPurchase>,
@@ -105,17 +99,27 @@ pub struct CreateLaunchpadPurchaseContext<'info> {
 pub struct SetLaunchPadPurchaseContext<'info> {
 
   /// CHECK: program owner, verified using #access_control
-  pub root: Signer<'info>,
+  pub owner: Signer<'info>,
 
-  #[account(mut)]
-  pub launchpad_purchase: Account<'info, LaunchpadPurchase>,
+  pub launchpad: Box<Account<'info, Launchpad>>,
+
+  /// CHECK: PDA to authorize launchpad tx
+  #[account(
+    seeds = [
+      &LAUNCHPAD_PURCHASE_SEED_1,
+      launchpad.key().as_ref(),
+      launchpad_purchase.token_mint.as_ref()
+    ],
+    bump = launchpad_purchase.nonce,
+  )]
+  pub launchpad_purchase: Box<Account<'info, LaunchpadPurchase>>,
 }
 
 #[derive(Accounts)]
 pub struct SetLaunchpadStatusContext<'info> {
 
   /// CHECK: program owner, verified using #access_control
-  pub root: Signer<'info>,
+  pub owner: Signer<'info>,
 
   #[account(mut)]
   pub launchpad: Account<'info, Launchpad>,
@@ -130,28 +134,17 @@ pub struct RegisterContext<'info> {
   pub user: Signer<'info>,
 
   #[account(
-    seeds = [
-      &GLOBAL_PROFILE_SEED_1,
-      &GLOBAL_PROFILE_SEED_2,
-      user.key().as_ref(),
-    ],
-    bump = global_profile.nonce,
-    constraint = global_profile.user == user.key() @ErrorCode::InvalidAccount,
-  )]
-  pub global_profile: Account<'info, GlobalProfile>,
-
-  #[account(
     mut,
     seeds = [
-      &LOCAL_PROFILE_SEED_1,
+      &USER_PROFILE_SEED_1,
       launchpad.key().as_ref(),
       user.key().as_ref(),
     ],
-    bump = local_profile.nonce,
-    constraint = local_profile.launchpad == launchpad.key() @ErrorCode::InvalidAccount,
-    constraint = local_profile.user == user.key() @ErrorCode::InvalidAccount,
+    bump = user_profile.nonce,
+    constraint = user_profile.launchpad == launchpad.key() @ErrorCode::InvalidAccount,
+    constraint = user_profile.user == user.key() @ErrorCode::InvalidAccount,
   )]
-  pub local_profile: Account<'info, LocalProfile>,
+  pub user_profile: Account<'info, UserProfile>,
 }
 
 #[derive(Accounts)]
@@ -174,28 +167,17 @@ pub struct RedeemBySolContext<'info> {
   pub user: AccountInfo<'info>,
 
   #[account(
-    seeds = [
-      &GLOBAL_PROFILE_SEED_1,
-      &GLOBAL_PROFILE_SEED_2,
-      user.key().as_ref(),
-    ],
-    bump = global_profile.nonce,
-    constraint = global_profile.user == user.key() @ErrorCode::InvalidAccount,
-  )]
-  pub global_profile: Box<Account<'info, GlobalProfile>>,
-
-  #[account(
     mut,
     seeds = [
-      &LOCAL_PROFILE_SEED_1,
+      &USER_PROFILE_SEED_1,
       launchpad.key().as_ref(),
       user.key().as_ref(),
     ],
-    bump = local_profile.nonce,
-    constraint = local_profile.launchpad == launchpad.key() @ErrorCode::InvalidAccount,
-    constraint = local_profile.user == user.key() @ErrorCode::InvalidAccount,
+    bump = user_profile.nonce,
+    constraint = user_profile.launchpad == launchpad.key() @ErrorCode::InvalidAccount,
+    constraint = user_profile.user == user.key() @ErrorCode::InvalidAccount,
   )]
-  pub local_profile: Box<Account<'info, LocalProfile>>,
+  pub user_profile: Box<Account<'info, UserProfile>>,
 
   /// CHECK: User token account to receive token sale
   #[account(mut)]
@@ -252,28 +234,17 @@ pub struct RedeemByTokenContext<'info> {
   pub user: Signer<'info>,
 
   #[account(
-    seeds = [
-      &GLOBAL_PROFILE_SEED_1,
-      &GLOBAL_PROFILE_SEED_2,
-      user.key().as_ref(),
-    ],
-    bump = global_profile.nonce,
-    constraint = global_profile.user == user.key() @ErrorCode::InvalidAccount,
-  )]
-  pub global_profile: Box<Account<'info, GlobalProfile>>,
-
-  #[account(
     mut,
     seeds = [
-      &LOCAL_PROFILE_SEED_1,
+      &USER_PROFILE_SEED_1,
       launchpad.key().as_ref(),
       user.key().as_ref(),
     ],
-    bump = local_profile.nonce,
-    constraint = local_profile.launchpad == launchpad.key() @ErrorCode::InvalidAccount,
-    constraint = local_profile.user == user.key() @ErrorCode::InvalidAccount,
+    bump = user_profile.nonce,
+    constraint = user_profile.launchpad == launchpad.key() @ErrorCode::InvalidAccount,
+    constraint = user_profile.user == user.key() @ErrorCode::InvalidAccount,
   )]
-  pub local_profile: Box<Account<'info, LocalProfile>>,
+  pub user_profile: Box<Account<'info, UserProfile>>,
 
   /// CHECK: User token account to buy token
   #[account(mut)]
@@ -314,52 +285,7 @@ pub struct RedeemByTokenContext<'info> {
 
 #[derive(Accounts)]
 #[instruction(user: Pubkey)]
-pub struct SetBlacklistContext<'info> {
-
-  /// CHECK: program owner, verified using #access_control
-  #[account(signer)]
-  pub root: AccountInfo<'info>,
-
-  #[account(
-    mut,
-    seeds = [
-      &GLOBAL_PROFILE_SEED_1,
-      &GLOBAL_PROFILE_SEED_2,
-      user.as_ref(),
-    ],
-    bump = global_profile.nonce,
-    constraint = global_profile.user == user @ErrorCode::InvalidAccount,
-  )]
-  pub global_profile: Account<'info, GlobalProfile>,
-}
-
-#[derive(Accounts)]
-#[instruction(user: Pubkey)]
-pub struct CreateGlobalProfileContext<'info> {
-
-  /// CHECK: Fee payer
-  #[account(mut)]
-  pub payer: Signer<'info>,
-
-  #[account(
-    init,
-    seeds = [
-      &GLOBAL_PROFILE_SEED_1,
-      &GLOBAL_PROFILE_SEED_2,
-      user.as_ref(),
-    ],
-    bump,
-    payer = payer,
-    space = 16 + GlobalProfile::LEN,
-  )]
-  pub global_profile: Account<'info, GlobalProfile>,
-
-  pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-#[instruction(user: Pubkey)]
-pub struct CreateLocalProfileContext<'info> {
+pub struct CreateUserProfileContext<'info> {
 
   /// CHECK: Fee payer
   #[account(mut)]
@@ -370,15 +296,15 @@ pub struct CreateLocalProfileContext<'info> {
   #[account(
     init,
     seeds = [
-      &LOCAL_PROFILE_SEED_1,
+      &USER_PROFILE_SEED_1,
       launchpad.key().as_ref(),
       user.as_ref(),
     ],
     bump,
     payer = payer,
-    space = 16 + LocalProfile::LEN,
+    space = 16 + UserProfile::LEN,
   )]
-  pub local_profile: Account<'info, LocalProfile>,
+  pub user_profile: Account<'info, UserProfile>,
 
   pub system_program: Program<'info, System>,
 }
@@ -387,7 +313,7 @@ pub struct CreateLocalProfileContext<'info> {
 pub struct WithdrawSolContext<'info> {
   /// CHECK: Root
   #[account(mut)]
-  pub root: Signer<'info>,
+  pub owner: Signer<'info>,
 
   pub launchpad: Account<'info, Launchpad>,
 
@@ -409,7 +335,7 @@ pub struct WithdrawSolContext<'info> {
 pub struct WithdrawTokenContext<'info> {
   /// CHECK: Root
   #[account(mut)]
-  pub root: Signer<'info>,
+  pub owner: Signer<'info>,
 
   pub launchpad: Account<'info, Launchpad>,
 
