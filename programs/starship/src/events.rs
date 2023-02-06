@@ -31,6 +31,16 @@ pub struct UpdateSharingFeeEvent {
 }
 
 #[event]
+pub struct TransferLaunchpadOwnershipEvent {
+  pub new_owner: Pubkey
+}
+
+#[event]
+pub struct AcceptLaunchpadOwnershipEvent {
+  pub new_owner: Pubkey
+}
+
+#[event]
 pub struct CreateLaunchpadPuchaseEvent {
   pub token_mint: Pubkey
 }

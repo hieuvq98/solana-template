@@ -70,6 +70,26 @@ pub struct UpdateSharingFeeContext<'info> {
 }
 
 #[derive(Accounts)]
+pub struct TransferLaunchpadOwnershipContext<'info> {
+
+  /// CHECK: program owner, verified using #access_control
+  pub owner: Signer<'info>,
+
+  #[account(mut)]
+  pub launchpad: Account<'info, Launchpad>,
+}
+
+#[derive(Accounts)]
+pub struct AcceptLaunchpadOwnershipContext<'info> {
+
+  /// CHECK: program owner, verified using #access_control
+  pub new_owner: Signer<'info>,
+
+  #[account(mut)]
+  pub launchpad: Account<'info, Launchpad>,
+}
+
+#[derive(Accounts)]
 #[instruction(token_mint: Pubkey)]
 pub struct CreateLaunchpadPurchaseContext<'info> {
 

@@ -160,6 +160,39 @@ mod coin98_starship {
   }
 
   #[access_control(verify_owner(ctx.accounts.launchpad.owner, *ctx.accounts.owner.key))]
+  pub fn transfer_launchpad_ownership(
+    ctx: Context<TransferLaunchpadOwnershipContext>,
+    new_owner: Pubkey
+  ) -> Result<()> {
+    let launchpad = &mut ctx.accounts.launchpad;
+
+    launchpad.new_owner = new_owner;
+
+    emit!(TransferLaunchpadOwnershipEvent{
+      new_owner
+    });
+    
+    Ok(())
+  }
+
+  #[access_control(verify_owner(ctx.accounts.launchpad.new_owner, *ctx.accounts.new_owner.key))]
+  pub fn accept_launchpad_ownership(
+    ctx: Context<AcceptLaunchpadOwnershipContext>,
+  ) -> Result<()> {
+    let launchpad = &mut ctx.accounts.launchpad;
+    let new_owner = &ctx.accounts.new_owner;
+
+    launchpad.owner = new_owner.key();
+    launchpad.new_owner = Pubkey::default();
+
+    emit!(AcceptLaunchpadOwnershipEvent{
+      new_owner: new_owner.key()
+    });
+    
+    Ok(())
+  }
+
+  #[access_control(verify_owner(ctx.accounts.launchpad.owner, *ctx.accounts.owner.key))]
   pub fn create_launchpad_purchase(
     ctx: Context<CreateLaunchpadPurchaseContext>,
     token_mint: Pubkey,
