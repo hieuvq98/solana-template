@@ -6,7 +6,9 @@ import { randomString, RedemptionTree, WhitelistParams, wait } from "./utils"
 import { SolanaService, SystemProgramService, TokenProgramService } from "@coin98/solana-support-library";
 import { StarshipInstructionService } from "../services/starship_instruction.service";
 
-const PROGRAM_ID: PublicKey = new PublicKey("FaJtq6SLQNwGgaggr7izJMgRYkxU1xwtCjnyESSXhvHG")
+const PROGRAM_ID: PublicKey = new PublicKey("ASMck7GjbLUkmsesypj4mA9s3ye311AqfAk7tFjHmaSh")
+
+const FEE_OWNER: PublicKey = new PublicKey("GnzQDYm2gvwZ8wRVmuwVAeHx5T44ovC735vDgSNhumzQ")
 
 describe("Profile Test",() => {
   let connection = new Connection("http://localhost:8899", "confirmed")
@@ -40,7 +42,6 @@ describe("Profile Test",() => {
   const limitSale =  new BN("1000000000000")
   const saleLimitPerTransaction = new BN(10000)
   const saleLimitPerUser = new BN(100000000000)
-  const currentTime =  Math.floor((new Date()).valueOf() / 1000)
 
   let launchpadAddress: PublicKey
   let launchpadPurchaseAddress: PublicKey
@@ -54,7 +55,7 @@ describe("Profile Test",() => {
       connection,
       defaultAccount,
       token0Mint,
-      2,
+      6,
       defaultAccount.publicKey,
       null
     )
@@ -63,17 +64,18 @@ describe("Profile Test",() => {
       connection,
       defaultAccount,
       token1Mint,
-      2,
+      6,
       defaultAccount.publicKey,
       null
     )
   }) 
 
   beforeEach(async () => {
+    const currentTime =  Math.floor((new Date()).valueOf() / 1000)
     const launchpadName = randomString(10)
-    const registerStartTimestamp = new BN(currentTime + 10)
-    const registerEndTimestamp = new BN(currentTime + 20)
-    const redeemStartTimestamp = new BN(currentTime + 21)
+    const registerStartTimestamp = new BN(currentTime + 3)
+    const registerEndTimestamp = new BN(currentTime + 10)
+    const redeemStartTimestamp = new BN(currentTime + 12)
     const redeemEndTimestamp = new BN(currentTime + 100)
     launchpadAddress = await StarshipService.createLaunchpad(
       connection,
@@ -91,6 +93,8 @@ describe("Profile Test",() => {
       redeemStartTimestamp,
       redeemEndTimestamp,
       redemptiomTree.getRoot().hash,
+      new BN(1000),
+      new BN(10),
       PROGRAM_ID
     )
     launchpadPurchaseAddress = await StarshipService.createLaunchpadPurchase(
@@ -141,6 +145,8 @@ describe("Profile Test",() => {
 
     const proofs = redemptiomTree.getProof(0)
 
+    await wait(2000)
+
     await StarshipService.register(
       connection,
       testAccount1,
@@ -160,6 +166,7 @@ describe("Profile Test",() => {
     )
 
     const proofs = redemptiomTree.getProof(0)
+    await wait(2000)
 
     await StarshipService.register(
       connection,
@@ -176,6 +183,7 @@ describe("Profile Test",() => {
       testAccount1.publicKey,
       token1Mint.publicKey,
     )
+    await wait(10000)
 
     await StarshipService.redeemBySol(
       connection,
@@ -183,6 +191,7 @@ describe("Profile Test",() => {
       launchpadAddress,
       testAccount1Token1Address,
       launchpadToken1Address,
+      FEE_OWNER,
       100000,
       PROGRAM_ID
     )
@@ -205,6 +214,7 @@ describe("Profile Test",() => {
     )
 
     const proofs = redemptiomTree.getProof(0)
+    await wait(2000)
 
     await StarshipService.register(
       connection,
@@ -222,12 +232,19 @@ describe("Profile Test",() => {
       token0Mint.publicKey,
     )
 
+    const feeOwnerToken0Address: PublicKey = await TokenProgramService.createAssociatedTokenAccount(
+      connection,
+      defaultAccount,
+      FEE_OWNER,
+      token0Mint.publicKey,
+    )
+
     await TokenProgramService.mint(
       connection,
       defaultAccount,
       token0Mint.publicKey,
       testAccount1.publicKey,
-      new BN(10000)
+      new BN(10000000000)
     )
 
     const testAccount1Token1Address: PublicKey = await TokenProgramService.createAssociatedTokenAccount(
@@ -236,6 +253,8 @@ describe("Profile Test",() => {
       testAccount1.publicKey,
       token1Mint.publicKey,
     )
+
+    await wait(10000)
 
     await StarshipService.redeemByToken(
       connection,
@@ -246,7 +265,8 @@ describe("Profile Test",() => {
       testAccount1Token1Address,
       launchpadToken0Address,
       launchpadToken1Address,
-      new BN(10000),
+      feeOwnerToken0Address,
+      new BN(1000000),
       PROGRAM_ID
     )
 

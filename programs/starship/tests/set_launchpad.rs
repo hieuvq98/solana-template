@@ -1,7 +1,7 @@
 pub mod utils;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use anchor_lang::{solana_program::keccak::hashv};
+use anchor_lang::solana_program::keccak::hashv;
 
 use solana_sdk::signature::{Keypair, Signer};
 use solana_program_test::*;
@@ -34,6 +34,8 @@ async fn set_launchpad_data_success(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64, // protocol fee
+      10u64 // sharing fee
     );
 
     let user1_data = starship::state::WhitelistParams{
@@ -91,6 +93,8 @@ async fn set_launchpad_time_fail(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64,
+      10u64
     );
 
     let user1_data = starship::state::WhitelistParams{
@@ -148,6 +152,8 @@ async fn set_launchpad_price_fail(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64,
+      10u64
     );
 
     let user1_data = starship::state::WhitelistParams{
@@ -215,6 +221,8 @@ async fn set_launchpad_purchase_success(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64,
+      10u64
     );
 
     let user1_data = starship::state::WhitelistParams{
@@ -285,6 +293,8 @@ async fn set_launchpad_purchase_fail(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64,
+      10u64
     );
 
     let user1_data = starship::state::WhitelistParams{

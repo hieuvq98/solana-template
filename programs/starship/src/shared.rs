@@ -30,6 +30,20 @@ pub fn calculate_sub_total(
   }
 }
 
+pub fn calculate_system_fee(
+  amount: u64,
+  protocol_fee: u64,
+  sharing_fee: u64,
+) -> u64 {
+  if amount == 0 {
+    0
+  } else {
+    let mut system_fee: u64 = (amount.checked_mul(protocol_fee).unwrap()).checked_div(10000).unwrap();
+    system_fee = system_fee.checked_add(sharing_fee).unwrap();
+    system_fee
+  }
+}
+
 /// Returns true if a `leaf` can be proved to be a part of a Merkle tree
 /// defined by `root`. For this, a `proof` must be provided, containing
 /// sibling hashes on the branch from the leaf to the root of the tree. Each

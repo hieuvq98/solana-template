@@ -21,6 +21,26 @@ pub struct SetLaunchpadEvent {
 }
 
 #[event]
+pub struct UpdateProtocolFeeEvent {
+  pub protocol_fee: u64
+}
+
+#[event]
+pub struct UpdateSharingFeeEvent {
+  pub sharing_fee: u64
+}
+
+#[event]
+pub struct TransferLaunchpadOwnershipEvent {
+  pub new_owner: Pubkey
+}
+
+#[event]
+pub struct AcceptLaunchpadOwnershipEvent {
+  pub new_owner: Pubkey
+}
+
+#[event]
 pub struct CreateLaunchpadPuchaseEvent {
   pub token_mint: Pubkey
 }
@@ -62,12 +82,7 @@ pub struct SetBlacklistEvent {
 }
 
 #[event]
-pub struct CreateGlobalProfileEvent {
-  pub user: Pubkey,
-}
-
-#[event]
-pub struct CreateLocalProfileEvent {
+pub struct CreateUserProfileEvent {
   pub user: Pubkey,
 }
 

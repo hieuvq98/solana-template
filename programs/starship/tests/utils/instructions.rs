@@ -1,7 +1,11 @@
+use std::str::FromStr;
+
 use anchor_lang::*;
 use anchor_lang::solana_program::system_program;
 use solana_program::instruction::{Instruction};
 use solana_sdk::pubkey::{Pubkey};
+
+use starship::constant::FEE_OWNER;
 
 pub const LAUNCHPAD_SEED_1: &[u8] = &[8, 201, 24, 140, 93, 100, 30, 148];
 pub const LAUNCHPAD_PURCHASE_SEED_1: &[u8] = &[68, 70, 141, 93, 102, 104, 120, 59, 54];
@@ -39,6 +43,8 @@ pub fn create_launchpad_data_instruction(
     owner: &Pubkey,
     path: Vec<u8>,
     token_mint: &Pubkey,
+    protocol_fee: u64,
+    sharing_fee: u64
 )-> Instruction{
 
     let launchpad_path = path.clone();
@@ -51,8 +57,10 @@ pub fn create_launchpad_data_instruction(
     }.to_account_metas(None);
 
     let data = starship::instruction::CreateLaunchpad {
-        launchpad_path: launchpad_path,
-        token_mint: *token_mint
+        launchpad_path,
+        token_mint: *token_mint,
+        protocol_fee,
+        sharing_fee
     }.data();
 
     let instruction = Instruction {
@@ -285,6 +293,7 @@ pub fn redeem_by_sol_data_instruction(
         local_profile: *local_profile,
         user_token_account: *user_token_account,
         launchpad_token_account: *launchpad_token_account,
+        fee_owner: Pubkey::from_str(FEE_OWNER).unwrap(),
         system_program:system_program::id(),
         token_program: TOKEN_PROGRAM_ID,
     }.to_account_metas(None);
@@ -313,6 +322,7 @@ pub fn redeem_by_token_data_instruction(
     user_token1_account: &Pubkey,
     launchpad_token0_account: &Pubkey,
     launchpad_token1_account: &Pubkey,
+    fee_owner_token0_account: &Pubkey,
     amount: u64, )-> Instruction{
     let accounts = starship::accounts::RedeemByTokenContext {
         launchpad: *launchpad_address,
@@ -325,6 +335,7 @@ pub fn redeem_by_token_data_instruction(
         user_token1_account: *user_token1_account,
         launchpad_token0_account: *launchpad_token0_account,
         launchpad_token1_account: *launchpad_token1_account,
+        fee_owner_token0_account: *fee_owner_token0_account,
         token_program: TOKEN_PROGRAM_ID,
     }.to_account_metas(None);
 

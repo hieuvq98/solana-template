@@ -31,6 +31,8 @@ async fn admin_withdraw_sol(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64, // protocol fee
+      10u64 // sharing fee
     );
 
     let user1_data = starship::state::WhitelistParams{
@@ -98,6 +100,8 @@ async fn admin_withdraw_token(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64, // protocol fee
+      10u64 // sharing fee
     );
 
     let user1_data = starship::state::WhitelistParams{
@@ -165,6 +169,8 @@ async fn stranger_withdraw_token(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64, // protocol fee
+      10u64 // sharing fee
     );
 
     let user1_data = starship::state::WhitelistParams{
@@ -234,6 +240,8 @@ async fn stranger_withdraw_sol(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64, // protocol fee
+      10u64 // sharing fee
     );
 
     let user1_data = starship::state::WhitelistParams{

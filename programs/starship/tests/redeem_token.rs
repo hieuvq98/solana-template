@@ -1,11 +1,14 @@
 pub mod utils;
+use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anchor_lang::{solana_program::keccak::hashv};
 
 use solana_sdk::clock::Clock;
+use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
 use solana_program_test::*;
+use starship::constant::FEE_OWNER;
 use utils::helpers::*;
 use utils::instructions::*;
 #[tokio::test]
@@ -42,6 +45,8 @@ async fn test_redeem_by_token(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64, // protocol fee
+      10u64 // sharing fee
     );
 
     let user1_data = starship::state::WhitelistParams{
@@ -118,6 +123,7 @@ async fn test_redeem_by_token(){
     let (launchpad_signer,_) = find_launchpad_signer_address(launchpad_address);
     let launchpad_c98_token_account = create_associated_token_account(&mut context, &launchpad_signer, &c98_mint.pubkey()).await.unwrap();
     let launchpad_cusd_token_account = create_associated_token_account(&mut context, &launchpad_signer, &cusd_mint.pubkey()).await.unwrap();
+    let fee_owner_cusd_token_account = create_associated_token_account(&mut context, &Pubkey::from_str(FEE_OWNER).unwrap(), &cusd_mint.pubkey()).await.unwrap();
     mint_tokens(&mut context, &c98_mint.pubkey(), &launchpad_c98_token_account, 1_000_000_000_000, &payer_wallet.pubkey(), Some(&payer_wallet)).await.unwrap();
 
     context.set_sysvar(&Clock{
@@ -127,7 +133,7 @@ async fn test_redeem_by_token(){
         leader_schedule_epoch: 1,
         unix_timestamp: time+2001,
     });
-    let user1_redeem_token_by_token = redeem_by_token_data_instruction(&user1.pubkey(), &launchpad_address, &launchpad_purchase_address, &launchpad_signer, &user1_global_profile, &user1_local_profile, &user1_cusd_token_account, &user1_c98_token_account, &launchpad_cusd_token_account, &launchpad_c98_token_account, 20);
+    let user1_redeem_token_by_token = redeem_by_token_data_instruction(&user1.pubkey(), &launchpad_address, &launchpad_purchase_address, &launchpad_signer, &user1_global_profile, &user1_local_profile, &user1_cusd_token_account, &user1_c98_token_account, &launchpad_cusd_token_account, &launchpad_c98_token_account, &fee_owner_cusd_token_account, 20);
     process_transaction(&mut context, &Vec::from([user1_redeem_token_by_token]), &Vec::from([&user1])).await.unwrap();
 }
 #[tokio::test]
@@ -157,6 +163,8 @@ async fn reach_to_limit_sale(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64, // protocol fee
+      10u64 // sharing fee
     );
 
     let user1_data = starship::state::WhitelistParams{
@@ -274,6 +282,8 @@ async fn register_redeem_before_active(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64, // protocol fee
+      10u64 // sharing fee
     );
 
     let user1_data = starship::state::WhitelistParams{
@@ -370,6 +380,8 @@ async fn stranger_redeem(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64, // protocol fee
+      10u64 // sharing fee
     );
 
     let user1_data = starship::state::WhitelistParams{

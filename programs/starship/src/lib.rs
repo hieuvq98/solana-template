@@ -12,11 +12,12 @@ use std::convert::TryInto;
 use crate::error::ErrorCode;
 use crate::constant::{
   ROOT_KEYS,
+  FEE_OWNER,
   SIGNER_SEED_1,
 };
 use crate::context::*;
 use crate::state::{
-  WhitelistParams,
+  WhitelistParams
 };
 use crate::external::anchor_spl_system::{
   transfer_lamport,
@@ -26,7 +27,7 @@ use crate::external::anchor_spl_token::{
 };
 use crate::events::*;
 
-declare_id!("FaJtq6SLQNwGgaggr7izJMgRYkxU1xwtCjnyESSXhvHG");
+declare_id!("ASMck7GjbLUkmsesypj4mA9s3ye311AqfAk7tFjHmaSh");
 
 #[program]
 mod coin98_starship {
@@ -37,7 +38,11 @@ mod coin98_starship {
     ctx: Context<CreateLaunchpadContext>,
     launchpad_path: Vec<u8>,
     token_mint: Pubkey,
+    owner: Pubkey,
+    protocol_fee: u64,
+    sharing_fee: u64
   ) -> Result<()> {
+    require!(protocol_fee <= 2000, ErrorCode::MaxFeeReached);
 
     let launchpad = &mut ctx.accounts.launchpad;
 
@@ -50,8 +55,10 @@ mod coin98_starship {
       ctx.program_id,
     );
     launchpad.signer_nonce = signer_nonce;
-    launchpad.owner = *ctx.accounts.root.key;
+    launchpad.owner = owner;
     launchpad.token_mint = token_mint;
+    launchpad.protocol_fee = protocol_fee;
+    launchpad.sharing_fee = sharing_fee;
 
     emit!(CreateLaunchpadEvent{
       launchpad_path,
@@ -61,7 +68,7 @@ mod coin98_starship {
     Ok(())
   }
 
-  #[access_control(verify_root(*ctx.accounts.root.key))]
+  #[access_control(verify_owner(ctx.accounts.launchpad.owner, *ctx.accounts.owner.key))]
   pub fn set_launchpad(
     ctx: Context<SetLaunchpadContext>,
     price_n: u64,
@@ -86,6 +93,7 @@ mod coin98_starship {
 
     let launchpad = &mut ctx.accounts.launchpad;
 
+    launchpad.is_active = true;
     launchpad.price_n = price_n;
     launchpad.price_d = price_d;
     launchpad.min_per_tx = min_per_tx;
@@ -119,6 +127,72 @@ mod coin98_starship {
   }
 
   #[access_control(verify_root(*ctx.accounts.root.key))]
+  pub fn update_protocol_fee(
+    ctx: Context<UpdateProtocolFeeContext>,
+    protocol_fee: u64
+  ) -> Result<()> {
+    require!(protocol_fee <= 2000, ErrorCode::MaxFeeReached);
+    let launchpad = &mut ctx.accounts.launchpad;
+
+    launchpad.protocol_fee = protocol_fee;
+
+    emit!(UpdateProtocolFeeEvent{
+      protocol_fee
+    });
+    
+    Ok(())
+  }
+
+  #[access_control(verify_owner(ctx.accounts.launchpad.owner, *ctx.accounts.owner.key))]
+  pub fn update_sharing_fee(
+    ctx: Context<UpdateSharingFeeContext>,
+    sharing_fee: u64
+  ) -> Result<()> {
+    let launchpad = &mut ctx.accounts.launchpad;
+
+    launchpad.sharing_fee = sharing_fee;
+
+    emit!(UpdateSharingFeeEvent{
+      sharing_fee
+    });
+    
+    Ok(())
+  }
+
+  #[access_control(verify_owner(ctx.accounts.launchpad.owner, *ctx.accounts.owner.key))]
+  pub fn transfer_launchpad_ownership(
+    ctx: Context<TransferLaunchpadOwnershipContext>,
+    new_owner: Pubkey
+  ) -> Result<()> {
+    let launchpad = &mut ctx.accounts.launchpad;
+
+    launchpad.new_owner = new_owner;
+
+    emit!(TransferLaunchpadOwnershipEvent{
+      new_owner
+    });
+    
+    Ok(())
+  }
+
+  #[access_control(verify_owner(ctx.accounts.launchpad.new_owner, *ctx.accounts.new_owner.key))]
+  pub fn accept_launchpad_ownership(
+    ctx: Context<AcceptLaunchpadOwnershipContext>,
+  ) -> Result<()> {
+    let launchpad = &mut ctx.accounts.launchpad;
+    let new_owner = &ctx.accounts.new_owner;
+
+    launchpad.owner = new_owner.key();
+    launchpad.new_owner = Pubkey::default();
+
+    emit!(AcceptLaunchpadOwnershipEvent{
+      new_owner: new_owner.key()
+    });
+    
+    Ok(())
+  }
+
+  #[access_control(verify_owner(ctx.accounts.launchpad.owner, *ctx.accounts.owner.key))]
   pub fn create_launchpad_purchase(
     ctx: Context<CreateLaunchpadPurchaseContext>,
     token_mint: Pubkey,
@@ -137,7 +211,7 @@ mod coin98_starship {
     Ok(())
   }
 
-  #[access_control(verify_root(*ctx.accounts.root.key))]
+  #[access_control(verify_owner(ctx.accounts.launchpad.owner, *ctx.accounts.owner.key))]
   pub fn set_launchpad_purchase(
     ctx: Context<SetLaunchPadPurchaseContext>,
     price_n: u64,
@@ -168,7 +242,7 @@ mod coin98_starship {
     Ok(())
   }
 
-  #[access_control(verify_root(*ctx.accounts.root.key))]
+  #[access_control(verify_owner(ctx.accounts.launchpad.owner, *ctx.accounts.owner.key))]
   pub fn set_launchpad_status(
     ctx: Context<SetLaunchpadStatusContext>,
     is_active: bool,
@@ -192,11 +266,9 @@ mod coin98_starship {
 
     let user = &ctx.accounts.user;
     let launchpad = &ctx.accounts.launchpad;
-    let global_profile = &ctx.accounts.global_profile;
     let clock = Clock::get().unwrap();
 
     require!(launchpad.is_active, ErrorCode::Inactive);
-    require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
     require!(
       clock.unix_timestamp >= launchpad.register_start_timestamp && clock.unix_timestamp <= launchpad.register_end_timestamp,
       ErrorCode::NotInTimeframe,
@@ -212,8 +284,8 @@ mod coin98_starship {
       require!(is_valid_proof, ErrorCode::Unauthorized);
     }
 
-    let local_profile = &mut ctx.accounts.local_profile;
-    local_profile.is_registered = true;
+    let user_profile = &mut ctx.accounts.user_profile;
+    user_profile.is_registered = true;
 
     emit!(RegisterEvent{
       index,
@@ -231,16 +303,17 @@ mod coin98_starship {
     let user = &ctx.accounts.user;
     let launchpad = &ctx.accounts.launchpad;
     let launchpad_signer = &ctx.accounts.launchpad_signer;
-    let global_profile = &ctx.accounts.global_profile;
-    let local_profile = &mut ctx.accounts.local_profile;
+    let user_profile = &mut ctx.accounts.user_profile;
     let user_token_account = &ctx.accounts.user_token_account;
     let launchpad_token_account = &ctx.accounts.launchpad_token_account;
+    let fee_owner = &ctx.accounts.fee_owner;
     let clock = Clock::get().unwrap();
 
+    require!(fee_owner.key().to_string() == FEE_OWNER, ErrorCode::InvalidFeeOwner);
+
     require!(launchpad.is_active, ErrorCode::Inactive);
-    require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
     require!(launchpad.price_n > 0u64, ErrorCode::NotAllowed);
-    require!(local_profile.is_registered, ErrorCode::Unauthorized);
+    require!(user_profile.is_registered, ErrorCode::Unauthorized);
     require!(
       clock.unix_timestamp >= launchpad.redeem_start_timestamp && clock.unix_timestamp <= launchpad.redeem_end_timestamp,
       ErrorCode::NotInTimeframe,
@@ -249,12 +322,12 @@ mod coin98_starship {
       launchpad.min_per_tx == 0u64 || amount >= launchpad.min_per_tx,
       ErrorCode::MinAmountNotSatisfied,
     );
-    let redeemed_amount = local_profile.redeemed_token.checked_add(amount).unwrap();
+    let redeemed_amount = user_profile.redeemed_token.checked_add(amount).unwrap();
     require!(
       launchpad.max_per_user == 0u64 || redeemed_amount <= launchpad.max_per_user,
       ErrorCode::MaxAmountReached,
     );
-    local_profile.redeemed_token = redeemed_amount;
+    user_profile.redeemed_token = redeemed_amount;
 
     let amount_sol = shared::calculate_sub_total(amount, launchpad.price_n, launchpad.price_d)
       .unwrap();
@@ -267,6 +340,12 @@ mod coin98_starship {
       launchpad.to_account_info().key.as_ref(),
       &[launchpad.signer_nonce],
     ];
+
+    let system_fee = shared::calculate_system_fee(amount_sol, launchpad.protocol_fee, launchpad.sharing_fee);
+
+    if system_fee > 0 && system_fee < amount_sol {
+      transfer_lamport(launchpad_signer, fee_owner, system_fee, &[seeds]).expect("Starship: CPI failed");
+    }
 
     // Transfer token 1
     transfer_token(launchpad_signer, &launchpad_token_account.to_account_info(), &user_token_account, amount, &[seeds])
@@ -287,18 +366,17 @@ mod coin98_starship {
     let launchpad = &ctx.accounts.launchpad;
     let launchpad_purchase = &mut ctx.accounts.launchpad_purchase;
     let launchpad_signer = &ctx.accounts.launchpad_signer;
-    let global_profile = &ctx.accounts.global_profile;
-    let local_profile = &ctx.accounts.local_profile;
+    let user_profile = &ctx.accounts.user_profile;
     let user_token0_account = &ctx.accounts.user_token0_account;
     let user_token1_account = &ctx.accounts.user_token1_account;
     let launchpad_token0_account = &ctx.accounts.launchpad_token0_account;
     let launchpad_token1_account = &ctx.accounts.launchpad_token1_account;
+    let fee_owner_token0_account = &ctx.accounts.fee_owner_token0_account;
     let clock = Clock::get().unwrap();
 
     require!(launchpad.is_active, ErrorCode::Inactive);
-    require!(!global_profile.is_blacklisted, ErrorCode::Forbidden);
     require!(launchpad_purchase.price_n > 0u64, ErrorCode::NotAllowed);
-    require!(local_profile.is_registered, ErrorCode::Unauthorized);
+    require!(user_profile.is_registered, ErrorCode::Unauthorized);
     require!(
       clock.unix_timestamp >= launchpad.redeem_start_timestamp && clock.unix_timestamp <= launchpad.redeem_end_timestamp,
       ErrorCode::NotInTimeframe,
@@ -307,7 +385,7 @@ mod coin98_starship {
       launchpad.min_per_tx == 0u64 || amount >= launchpad.min_per_tx,
       ErrorCode::MinAmountNotSatisfied,
     );
-    let redeemed_amount = local_profile.redeemed_token.checked_add(amount).unwrap();
+    let redeemed_amount = user_profile.redeemed_token.checked_add(amount).unwrap();
     require!(
       launchpad.max_per_user == 0u64 || redeemed_amount <= launchpad.max_per_user,
       ErrorCode::MaxAmountReached,
@@ -326,15 +404,27 @@ mod coin98_starship {
       )
       .expect("Starship: CPI failed.");
 
-    let local_profile = &mut ctx.accounts.local_profile;
+    let user_profile = &mut ctx.accounts.user_profile;
 
-    local_profile.redeemed_token = redeemed_amount;
+    user_profile.redeemed_token = redeemed_amount;
 
     let seeds: &[&[_]] = &[
       &SIGNER_SEED_1,
       launchpad.to_account_info().key.as_ref(),
       &[launchpad.signer_nonce],
     ];
+
+    let system_fee = shared::calculate_system_fee(amount_token0, launchpad.protocol_fee, launchpad.sharing_fee);
+
+    if system_fee > 0 && system_fee < amount_token0 {
+      transfer_token(
+        &launchpad_signer, 
+        &launchpad_token0_account.to_account_info(), 
+        &fee_owner_token0_account.to_account_info(), 
+        system_fee, 
+        &[seeds]
+      ).expect("Starship: CPI failed");
+    }
 
     // Transfer token 1
     transfer_token(
@@ -353,68 +443,32 @@ mod coin98_starship {
     Ok(())
   }
 
-  #[access_control(verify_root(*ctx.accounts.root.key))]
-  pub fn set_blacklist(
-    ctx: Context<SetBlacklistContext>,
-    user: Pubkey,
-    is_blacklisted: bool,
-  ) -> Result<()> {
-
-    let profile = &mut ctx.accounts.global_profile;
-
-    profile.is_blacklisted = is_blacklisted;
-
-    emit!(SetBlacklistEvent{
-      user,
-      is_blacklisted,
-    });
-
-    Ok(())
-  }
-
-  pub fn create_global_profile(
-    ctx: Context<CreateGlobalProfileContext>,
-    user: Pubkey,
-  ) -> Result<()> {
-
-    let profile = &mut ctx.accounts.global_profile;
-
-    profile.nonce = *ctx.bumps.get("global_profile").unwrap();
-    profile.user = user;
-
-    emit!(CreateGlobalProfileEvent{
-      user,
-    });
-
-    Ok(())
-  }
-
-  pub fn create_local_profile(
-    ctx: Context<CreateLocalProfileContext>,
+  pub fn create_user_profile(
+    ctx: Context<CreateUserProfileContext>,
     user: Pubkey,
   ) -> Result<()> {
 
     let launchpad = &ctx.accounts.launchpad;
 
-    let profile = &mut ctx.accounts.local_profile;
+    let profile = &mut ctx.accounts.user_profile;
 
-    profile.nonce = *ctx.bumps.get("local_profile").unwrap();
+    profile.nonce = *ctx.bumps.get("user_profile").unwrap();
     profile.launchpad = launchpad.key();
     profile.user = user;
 
-    emit!(CreateLocalProfileEvent{
+    emit!(CreateUserProfileEvent{
       user,
     });
 
     Ok(())
   }
 
-  #[access_control(verify_root(*ctx.accounts.root.key))]
+  #[access_control(verify_owner(ctx.accounts.launchpad.owner, *ctx.accounts.owner.key))]
   pub fn withdraw_sol(
     ctx: Context<WithdrawSolContext>,
     amount: u64
   ) -> Result<()> {
-    let root = &ctx.accounts.root;
+    let root = &ctx.accounts.owner;
     let launchpad = &ctx.accounts.launchpad;
     let launchpad_signer = &ctx.accounts.launchpad_signer;
 
@@ -434,7 +488,7 @@ mod coin98_starship {
     Ok(())
   }
 
-  #[access_control(verify_root(*ctx.accounts.root.key))]
+  #[access_control(verify_owner(ctx.accounts.launchpad.owner, *ctx.accounts.owner.key))]
   pub fn withdraw_token(
     ctx: Context<WithdrawTokenContext>,
     amount: u64
@@ -467,5 +521,12 @@ pub fn verify_root(user: Pubkey) -> Result<()> {
     return Err(ErrorCode::Unauthorized.into());
   }
 
+  Ok(())
+}
+
+pub fn verify_owner(expect_owner: Pubkey, user: Pubkey) -> Result<()> {
+  if expect_owner != user {
+    return Err(ErrorCode::Unauthorized.into());
+  }
   Ok(())
 }

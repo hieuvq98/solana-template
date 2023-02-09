@@ -18,9 +18,11 @@ pub struct Launchpad {
   pub token_mint: Pubkey,
   pub owner: Pubkey, // For compability reason
   pub new_owner: Pubkey, // For compability reason
+  pub protocol_fee: u64,
+  pub sharing_fee: u64,
 }
 impl Launchpad {
-  pub const LEN: usize = 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 32 + 32;
+  pub const LEN: usize = 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 32 + 32 + 8 + 8;
 }
 
 #[account]
@@ -40,24 +42,14 @@ impl LaunchpadPurchase {
 }
 
 #[account]
-pub struct GlobalProfile {
-  pub nonce: u8,
-  pub user: Pubkey,
-  pub is_blacklisted: bool,
-}
-impl GlobalProfile {
-  pub const LEN: usize = 1 + 32 + 1;
-}
-
-#[account]
-pub struct LocalProfile {
+pub struct UserProfile {
   pub nonce: u8,
   pub launchpad: Pubkey,
   pub user: Pubkey,
   pub is_registered: bool,
   pub redeemed_token: u64,
 }
-impl LocalProfile {
+impl UserProfile {
   pub const LEN: usize = 1 + 32 + 32 + 1 + 8;
 }
 

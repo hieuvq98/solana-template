@@ -36,6 +36,8 @@ async fn user_unban_blacklist_register_claim(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64, // protocol fee
+      10u64 // sharing fee
     );
 
     let user1_data = starship::state::WhitelistParams{
@@ -158,6 +160,8 @@ async fn user_blacklist_register_claim(){
       &payer_wallet.pubkey(),
       launchpad_path,
       &c98_mint.pubkey(),
+      2000u64, // protocol fee
+      10u64 // sharing fee
     );
 
     let user1_data = starship::state::WhitelistParams{
