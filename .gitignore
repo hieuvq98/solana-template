@@ -1,10 +1,11 @@
 # Coin98 Solana contract gitignore
 /.DS_Store
 /.npmrc
+/.yarn
 /Cargo.lock
 /node_modules
 /package-lock.json
+/programs/*/tests/fixtures
 /target
-/typechain-types
 /yarn-error.log
 /yarn.lock

@@ -15,20 +15,16 @@
   },
   "homepage": "https://github.com/coin98/coin98-starship#readme",
   "scripts": {
-    "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
-    "maintain": "anchor test --skip-local-validator",
-    "test": "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/*.spec.ts",
-    "build:services": "tsc",
-    "build:program": "anchor build",
-    "build": "npm run build:services && npm run build:program",
-    "prerelease": "npm run test && npm run build && cp .npmrc dist",
-    "release": "standard-version && cp package.json dist && git push --follow-tags origin master && cd dist && npm publish"
+    "build:rs": "anchor build -- --features localhost",
+    "build:ts": "tsc --build",
+    "clean": "git clean -fxd",
+    "deploy:rs": "solana program deploy ./target/deploy/coin98_starship.so --program-id ./tests/coin98_starship.keypair.json --url localhost",
+    "test:rs": "cargo test-bpf -- --nocapture",
+    "test:ts": "ts-mocha -p ./tsconfig.mocha.json ./tests/*.spec.ts --timeout 60000"
   },
   "dependencies": {
     "@coin98/solana-support-library": "^0.2.0",
     "@coin98/vault-js": "^1.2.6",
-    "@project-serum/anchor": "^0.24.2",
     "@project-serum/borsh": "^0.2.5",
     "@solana/web3.js": "^1.43.2",
     "crypto-js": "^4.1.1",
