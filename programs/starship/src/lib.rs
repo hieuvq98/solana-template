@@ -27,7 +27,11 @@ use crate::external::anchor_spl_token::{
 };
 use crate::events::*;
 
-declare_id!("ASMck7GjbLUkmsesypj4mA9s3ye311AqfAk7tFjHmaSh");
+#[cfg(feature = "mainnet")]
+declare_id!("SPadMQQeXyUGprwgt2SM8xZWVdKJ82UpWstWBLEDJwj");
+
+#[cfg(all(not(feature = "mainnet"), not(feature = "devnet")))]
+declare_id!("SPDxTSk2fjE4jbZ9KuBkjZQHzEV2fkAHXh6sJ7oWbaj");
 
 #[program]
 mod coin98_starship {
@@ -139,7 +143,7 @@ mod coin98_starship {
     emit!(UpdateProtocolFeeEvent{
       protocol_fee
     });
-    
+
     Ok(())
   }
 
@@ -155,7 +159,7 @@ mod coin98_starship {
     emit!(UpdateSharingFeeEvent{
       sharing_fee
     });
-    
+
     Ok(())
   }
 
@@ -171,7 +175,7 @@ mod coin98_starship {
     emit!(TransferLaunchpadOwnershipEvent{
       new_owner
     });
-    
+
     Ok(())
   }
 
@@ -188,7 +192,7 @@ mod coin98_starship {
     emit!(AcceptLaunchpadOwnershipEvent{
       new_owner: new_owner.key()
     });
-    
+
     Ok(())
   }
 
@@ -418,10 +422,10 @@ mod coin98_starship {
 
     if system_fee > 0 && system_fee < amount_token0 {
       transfer_token(
-        &launchpad_signer, 
-        &launchpad_token0_account.to_account_info(), 
-        &fee_owner_token0_account.to_account_info(), 
-        system_fee, 
+        &launchpad_signer,
+        &launchpad_token0_account.to_account_info(),
+        &fee_owner_token0_account.to_account_info(),
+        system_fee,
         &[seeds]
       ).expect("Starship: CPI failed");
     }

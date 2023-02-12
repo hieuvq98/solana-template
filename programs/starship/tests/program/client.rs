@@ -51,45 +51,45 @@ pub fn create_launchpad_instruction(
   }
 }
 
-// pub fn set_launchpad_data_instruction(
-//     owner: &Pubkey,
-//     launchpad_address: &Pubkey,
-//     price_n: u64,
-//     price_d: u64,
-//     min_per_tx: u64,
-//     max_per_user: u64,
-//     limit_sale: u64,
-//     register_start_timestamp: i64,
-//     register_end_timestamp: i64,
-//     redeem_start_timestamp: i64,
-//     redeem_end_timestamp: i64,
-//     private_sale_root: Option<[u8; 32]>,
-// )-> Instruction{
-//     let accounts = starship::accounts::SetLaunchpadContext {
-//         root: *owner,
-//         launchpad: *launchpad_address,
-//     }.to_account_metas(None);
+pub fn set_launchpad_instruction(
+  owner_address: &Pubkey,
+  launchpad_address: &Pubkey,
+  price_n: u64,
+  price_d: u64,
+  min_per_tx: u64,
+  max_per_user: u64,
+  limit_sale: u64,
+  register_start_timestamp: i64,
+  register_end_timestamp: i64,
+  redeem_start_timestamp: i64,
+  redeem_end_timestamp: i64,
+  private_sale_root: Option<[u8; 32]>,
+)-> Instruction{
 
-//     let data = starship::instruction::SetLaunchpad {
-//         price_n: price_n,
-//         price_d: price_d,
-//         min_per_tx: min_per_tx,
-//         max_per_user: max_per_user,
-//         limit_sale: limit_sale,
-//         register_start_timestamp: register_start_timestamp,
-//         register_end_timestamp: register_end_timestamp,
-//         redeem_start_timestamp: redeem_start_timestamp,
-//         redeem_end_timestamp: redeem_end_timestamp,
-//         private_sale_root: private_sale_root,
-//     }.data();
-//     let instruction = Instruction {
-//         program_id: starship::id(),
-//         data,
-//         accounts
-//     };
+  let data = p_instruction::SetLaunchpad {
+    price_n,
+    price_d,
+    min_per_tx,
+    max_per_user,
+    limit_sale,
+    register_start_timestamp,
+    register_end_timestamp,
+    redeem_start_timestamp,
+    redeem_end_timestamp,
+    private_sale_root,
+  }.data();
 
-//     instruction
-// }
+  let accounts = p_context::SetLaunchpadContext {
+    owner: *owner_address,
+    launchpad: *launchpad_address,
+  }.to_account_metas(None);
+
+  Instruction {
+    data,
+    accounts,
+    program_id: PROGRAM_ID,
+  }
+}
 
 // pub fn create_launchpad_purchase_data_instruction(
 //     owner: &Pubkey,

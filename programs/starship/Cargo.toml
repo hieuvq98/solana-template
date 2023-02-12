@@ -12,6 +12,7 @@ num_enum = "=0.5.7"
 solana-program = "=1.14.15"
 
 [dev-dependencies]
+rand = "=0.8.5"
 solana-cli-config = "=1.14.15"
 solana-program-test = "=1.14.15"
 solana-sdk = "=1.14.15"
@@ -25,7 +26,8 @@ zstd-sys = "=2.0.4+zstd.1.5.2"
 [features]
 cpi = ["no-entrypoint"]
 default = []
-localhost = []
+devnet = []
+mainnet = []
 no-entrypoint = []
 no-idl = []
 

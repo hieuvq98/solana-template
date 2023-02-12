@@ -1,5 +1,4 @@
 use solana_sdk::{
-  declare_id,
   instruction::{
     AccountMeta,
     Instruction,
@@ -22,7 +21,8 @@ use super::{
   },
 };
 
-declare_id!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+// ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL
+pub const ID: Pubkey = Pubkey::new_from_array([140,151,37,143,78,36,137,241,187,61,16,41,20,142,13,131,11,90,19,153,218,255,16,132,4,142,123,216,219,233,248,89]);
 
 pub fn create_associated_token_account_instruction(
   payer_address: &Pubkey,

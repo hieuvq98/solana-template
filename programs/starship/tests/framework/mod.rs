@@ -1,6 +1,7 @@
 pub mod account;
 pub mod context;
+pub mod merkle_tree;
 pub mod system;
 pub mod token;
-pub mod spl_atoken;
-pub mod spl_token;
+mod spl_atoken;
+mod spl_token;

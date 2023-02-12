@@ -1,10 +1,18 @@
+#[cfg(feature = "mainnet")]
 pub const ROOT_KEYS: &[&str] = &[
-  "FzgJFn3oLjKju356W1LKX4B5yTsfHVKN3yjc6ydgzWaP",
-  "5UrM9csUEDBeBqMZTuuZyHRNhbRW4vQ1MgKJDrKU1U2v",
-  "GnzQDYm2gvwZ8wRVmuwVAeHx5T44ovC735vDgSNhumzQ",
+  "5CLctYx1inGCDnQCVmicx9uHPaqwghEsSEeFYZnk2L6x",
 ];
 
-pub const FEE_OWNER: &str = "GnzQDYm2gvwZ8wRVmuwVAeHx5T44ovC735vDgSNhumzQ";
+#[cfg(all(not(feature = "mainnet"), not(feature = "devnet")))]
+pub const ROOT_KEYS: &[&str] = &[
+  "8ST8fTBGKaVPx4f1KG1zMMw4EJmSJBW2UgX1JR2pPoVa",
+];
+
+#[cfg(feature = "mainnet")]
+pub const FEE_OWNER: &str = "FSskoaLzbUjbrvkB1DLg6fvayd2vYQYSvNWmZbTtH5Zy";
+
+#[cfg(all(not(feature = "mainnet"), not(feature = "devnet")))]
+pub const FEE_OWNER: &str = "8ST8fTBGKaVPx4f1KG1zMMw4EJmSJBW2UgX1JR2pPoVa";
 
 pub const LAUNCHPAD_SEED_1: &[u8] = &[8, 201, 24, 140, 93, 100, 30, 148];
 pub const LAUNCHPAD_PURCHASE_SEED_1: &[u8] = &[68, 70, 141, 93, 102, 104, 120, 59, 54];

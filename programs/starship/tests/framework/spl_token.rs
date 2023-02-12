@@ -13,7 +13,6 @@ use num_enum::{
   TryFromPrimitive,
 };
 use solana_sdk::{
-  declare_id,
   instruction::{
     AccountMeta,
     Instruction,
@@ -39,7 +38,8 @@ use solana_sdk::{
   }
 };
 
-declare_id!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+// TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+pub const ID: Pubkey = Pubkey::new_from_array([6,221,246,225,215,101,161,147,217,203,225,70,206,235,121,172,28,180,133,237,95,91,55,145,58,140,245,133,126,255,0,169]);
 
 pub const TOKEN_ACCOUNT_LENGTH: usize = 165;
 pub const TOKEN_MINT_LENGTH: usize = 82;

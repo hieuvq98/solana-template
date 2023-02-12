@@ -1,3 +1,9 @@
+use std::{
+  time::{
+    SystemTime,
+    UNIX_EPOCH,
+  },
+};
 use solana_program_test::{
   BanksClientError,
   ProgramTest,
@@ -69,6 +75,21 @@ pub async fn create_context(
   context_builder.start_with_context().await
 }
 
+pub fn get_current_timestamp(
+) -> i64 {
+  SystemTime::now()
+    .duration_since(UNIX_EPOCH)
+    .unwrap()
+    .as_secs() as i64
+}
+
+pub fn get_payer(
+  context: &ProgramTestContext,
+) -> Keypair {
+  Keypair::from_bytes(&context.payer.to_bytes())
+    .unwrap()
+}
+
 pub async fn forward_slot(
   context: &mut ProgramTestContext,
   slot_count: u64,
@@ -91,8 +112,6 @@ pub async fn forward_timestamp(
     .unwrap();
   context.set_sysvar(&new_clock);
 }
-
-
 
 pub async fn process_transaction(
   context: &mut ProgramTestContext,
