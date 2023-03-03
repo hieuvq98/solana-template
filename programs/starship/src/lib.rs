@@ -99,6 +99,8 @@ mod coin98_starship {
 
     let launchpad = &mut ctx.accounts.launchpad;
 
+    require!(launchpad.register_start_timestamp == 0 || clock.unix_timestamp < launchpad.register_start_timestamp, ErrorCode::LaunchpadStarted);
+
     launchpad.is_active = true;
     launchpad.price_n = price_n;
     launchpad.price_d = price_d;

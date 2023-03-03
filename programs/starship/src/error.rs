@@ -44,4 +44,7 @@ pub enum ErrorCode {
 
   #[msg("Starship: Invalid Fee.")]
   InvalidFee,
+
+  #[msg("Starship: Launchpad Started.")]
+  LaunchpadStarted,
 }
