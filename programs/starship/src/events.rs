@@ -12,7 +12,8 @@ pub struct SetLaunchpadEvent {
   pub price_d: u64,
   pub min_per_tx: u64,
   pub max_per_user: u64,
-  pub limit_sale: u64,
+  pub total_limit: u64,
+  pub amount_limit_in_sol: u64,
   pub register_start_timestamp: i64,
   pub register_end_timestamp: i64,
   pub redeem_start_timestamp: i64,
@@ -51,7 +52,7 @@ pub struct SetLaunchpadPuchaseEvent {
   pub price_d: u64,
   pub min_per_tx: u64,
   pub max_per_user: u64,
-  pub limit_sale: u64,
+  pub amount_limit_in_token: u64,
 }
 
 #[event]
