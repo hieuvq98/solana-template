@@ -69,7 +69,7 @@ pub struct CreateWhitelistTokenContext<'info> {
     payer = root,
     space = 16 + WhitelistToken::LEN
   )]
-  pub withlist: Account<'info, WhitelistToken>,
+  pub whitelist: Account<'info, WhitelistToken>,
 
 
   pub system_program: Program<'info, System>,
@@ -89,10 +89,10 @@ pub struct DeleteWhitelistTokenContext<'info> {
       &WHITELIST_TOKEN_SEED_1,
       &token_mint.as_ref()
     ],
-    bump = withlist.nonce,
+    bump = whitelist.nonce,
     close = root
   )]
-  pub withlist: Account<'info, WhitelistToken>,
+  pub whitelist: Account<'info, WhitelistToken>,
 
   pub system_program: Program<'info, System>,
 }
@@ -157,7 +157,14 @@ pub struct CreateLaunchpadPurchaseContext<'info> {
 
   pub launchpad: Account<'info, Launchpad>,
 
-  pub whitelist: Account<'info, WhitelistToken>,
+  #[account(
+    seeds = [
+      &WHITELIST_TOKEN_SEED_1,
+      &token_mint.as_ref(),
+    ],
+    bump = whitelist_token_mint.nonce,
+  )]
+  pub whitelist_token_mint: Account<'info, WhitelistToken>,
 
   #[account(
     init,

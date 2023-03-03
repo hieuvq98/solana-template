@@ -91,11 +91,11 @@ mod coin98_starship {
     token_mint: Pubkey
   ) -> Result<()> {
 
-    let whitelist = &mut ctx.accounts.withlist;
-    whitelist.nonce = *ctx.bumps.get("withlist").unwrap();
+    let whitelist = &mut ctx.accounts.whitelist;
+    whitelist.nonce = *ctx.bumps.get("whitelist").unwrap();
 
     emit!(CreateWhitelistTokenEvent {
-      token_mint
+      token_mint,
     });
 
     Ok(())
