@@ -6,12 +6,14 @@ use crate::constant::{
   USER_PROFILE_SEED_1,
   SIGNER_SEED_1,
   FEE_OWNER,
+  WHITELIST_TOKEN_SEED_1
 };
 use crate::error::ErrorCode;
 use crate::state::{
   Launchpad,
   LaunchpadPurchase,
   UserProfile,
+  WhitelistToken
 };
 use crate::external::spl_token::is_token_program;
 use crate::external::anchor_spl_token::TokenAccount;
@@ -35,6 +37,52 @@ pub struct CreateLaunchpadContext<'info> {
     space = 16 + Launchpad::LEN,
   )]
   pub launchpad: Account<'info, Launchpad>,
+
+  pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(token_mint: Pubkey)]
+pub struct CreateWhitelistTokenContext<'info> {
+
+  /// CHECK: program owner, verified using #access_control
+  #[account(mut)]
+  pub root: Signer<'info>,
+
+  #[account(
+    init,
+    seeds = [
+      &WHITELIST_TOKEN_SEED_1,
+      &token_mint.as_ref()
+    ],
+    bump,
+    payer = root,
+    space = 16 + WhitelistToken::LEN
+  )]
+  pub withlist: Account<'info, WhitelistToken>,
+
+
+  pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(token_mint: Pubkey)]
+pub struct DeleteWhitelistTokenContext<'info> {
+
+  /// CHECK: program owner, verified using #access_control
+  #[account(mut)]
+  pub root: Signer<'info>,
+
+  #[account(
+    mut,
+    seeds = [
+      &WHITELIST_TOKEN_SEED_1,
+      &token_mint.as_ref()
+    ],
+    bump = withlist.nonce,
+    close = root
+  )]
+  pub withlist: Account<'info, WhitelistToken>,
 
   pub system_program: Program<'info, System>,
 }
@@ -98,6 +146,8 @@ pub struct CreateLaunchpadPurchaseContext<'info> {
   pub owner: Signer<'info>,
 
   pub launchpad: Account<'info, Launchpad>,
+
+  pub whitelist: Account<'info, WhitelistToken>,
 
   #[account(
     init,

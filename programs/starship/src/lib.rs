@@ -71,6 +71,35 @@ mod coin98_starship {
 
     Ok(())
   }
+  
+  #[access_control(verify_root(*ctx.accounts.root.key))]
+  pub fn create_whitelist_token(
+    ctx: Context<CreateWhitelistTokenContext>,
+    token_mint: Pubkey
+  ) -> Result<()> {
+
+    let whitelist = &mut ctx.accounts.withlist;
+    whitelist.nonce = *ctx.bumps.get("withlist").unwrap();
+
+    emit!(CreateWhitelistTokenEvent {
+      token_mint
+    });
+
+    Ok(())
+  }
+
+  #[access_control(verify_root(*ctx.accounts.root.key))]
+  pub fn delete_whitelist_token(
+    ctx: Context<DeleteWhitelistTokenContext>,
+    token_mint: Pubkey
+  ) -> Result<()> {
+
+    emit!(DeleteWhitelistTokenEvent {
+      token_mint
+    });
+
+    Ok(())
+  }
 
   #[access_control(verify_owner(ctx.accounts.launchpad.owner, *ctx.accounts.owner.key))]
   pub fn set_launchpad(

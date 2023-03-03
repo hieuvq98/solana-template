@@ -65,3 +65,12 @@ pub struct WhitelistParams {
   pub index: u32,
   pub address: Pubkey,
 }
+
+#[account]
+pub struct WhitelistToken {
+  pub nonce: u8
+}
+
+impl WhitelistToken {
+  pub const LEN: usize = 8;
+}

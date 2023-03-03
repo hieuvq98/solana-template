@@ -7,6 +7,16 @@ pub struct CreateLaunchpadEvent {
 }
 
 #[event]
+pub struct CreateWhitelistTokenEvent {
+  pub token_mint: Pubkey
+}
+
+#[event]
+pub struct DeleteWhitelistTokenEvent {
+  pub token_mint: Pubkey
+}
+
+#[event]
 pub struct SetLaunchpadEvent {
   pub price_n: u64,
   pub price_d: u64,
