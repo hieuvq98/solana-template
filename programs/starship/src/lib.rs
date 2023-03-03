@@ -358,7 +358,9 @@ mod coin98_starship {
 
     let system_fee = shared::calculate_system_fee(amount_sol, launchpad.protocol_fee, launchpad.sharing_fee);
 
-    if system_fee > 0 && system_fee < amount_sol {
+    require!(system_fee < amount_sol, ErrorCode::InvalidFee);
+
+    if system_fee > 0 {
       transfer_lamport(launchpad_signer, fee_owner, system_fee, &[seeds]).expect("Starship: CPI failed");
     }
 
@@ -436,7 +438,9 @@ mod coin98_starship {
 
     let system_fee = shared::calculate_system_fee(amount_token0, launchpad.protocol_fee, launchpad_purchase.sharing_fee);
 
-    if system_fee > 0 && system_fee < amount_token0 {
+    require!(system_fee < amount_token0, ErrorCode::InvalidFee);
+
+    if system_fee > 0 {
       transfer_token(
         &launchpad_signer,
         &launchpad_token0_account.to_account_info(),
