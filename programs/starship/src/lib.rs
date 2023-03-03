@@ -79,7 +79,8 @@ mod coin98_starship {
     price_d: u64,
     min_per_tx: u64,
     max_per_user: u64,
-    limit_sale: u64,
+    total_limit: u64,
+    amount_limit_in_sol: u64,
     register_start_timestamp: i64,
     register_end_timestamp: i64,
     redeem_start_timestamp: i64,
@@ -102,7 +103,8 @@ mod coin98_starship {
     launchpad.price_d = price_d;
     launchpad.min_per_tx = min_per_tx;
     launchpad.max_per_user = max_per_user;
-    launchpad.limit_sale = limit_sale;
+    launchpad.total_limit = total_limit;
+    launchpad.amount_limit_in_sol = amount_limit_in_sol;
     launchpad.register_start_timestamp = register_start_timestamp;
     launchpad.register_end_timestamp = register_end_timestamp;
     launchpad.redeem_start_timestamp = redeem_start_timestamp;
@@ -119,7 +121,8 @@ mod coin98_starship {
       price_d,
       min_per_tx,
       max_per_user,
-      limit_sale,
+      total_limit,
+      amount_limit_in_sol,
       register_start_timestamp,
       register_end_timestamp,
       redeem_start_timestamp,
@@ -222,7 +225,7 @@ mod coin98_starship {
     price_d: u64,
     min_per_tx: u64,
     max_per_user: u64,
-    limit_sale: u64,
+    amount_limit_in_token: u64,
     sharing_fee: u64
   ) -> Result<()> {
 
@@ -234,7 +237,7 @@ mod coin98_starship {
     launchpad_purchase.price_d = price_d;
     launchpad_purchase.min_per_tx = min_per_tx;
     launchpad_purchase.max_per_user = max_per_user;
-    launchpad_purchase.limit_sale = limit_sale;
+    launchpad_purchase.amount_limit_in_token = amount_limit_in_token;
     launchpad_purchase.sharing_fee = sharing_fee;
 
     emit!(SetLaunchpadPuchaseEvent{
@@ -242,7 +245,7 @@ mod coin98_starship {
       price_d,
       min_per_tx,
       max_per_user,
-      limit_sale,
+      amount_limit_in_token,
     });
 
     Ok(())
@@ -307,7 +310,7 @@ mod coin98_starship {
   ) -> Result<()> {
 
     let user = &ctx.accounts.user;
-    let launchpad = &ctx.accounts.launchpad;
+    let launchpad = &mut ctx.accounts.launchpad;
     let launchpad_signer = &ctx.accounts.launchpad_signer;
     let user_profile = &mut ctx.accounts.user_profile;
     let user_token_account = &ctx.accounts.user_token_account;
@@ -318,6 +321,8 @@ mod coin98_starship {
     require!(fee_owner.key().to_string() == FEE_OWNER, ErrorCode::InvalidFeeOwner);
 
     require!(launchpad.is_active, ErrorCode::Inactive);
+    require!(launchpad.total_sold + amount <= launchpad.total_limit, ErrorCode::ReachLimitSold);
+    require!(launchpad.amount_sold_in_sol + amount <= launchpad.amount_limit_in_sol, ErrorCode::MaxAmountReached);
     require!(launchpad.price_n > 0u64, ErrorCode::NotAllowed);
     require!(user_profile.is_registered, ErrorCode::Unauthorized);
     require!(
@@ -333,6 +338,10 @@ mod coin98_starship {
       launchpad.max_per_user == 0u64 || redeemed_amount <= launchpad.max_per_user,
       ErrorCode::MaxAmountReached,
     );
+
+    launchpad.total_sold += amount;
+    launchpad.amount_sold_in_sol += amount;
+
     user_profile.redeemed_token = redeemed_amount;
 
     let amount_sol = shared::calculate_sub_total(amount, launchpad.price_n, launchpad.price_d)
@@ -369,7 +378,7 @@ mod coin98_starship {
   ) -> Result<()> {
 
     let user = &ctx.accounts.user;
-    let launchpad = &ctx.accounts.launchpad;
+    let launchpad = &mut ctx.accounts.launchpad;
     let launchpad_purchase = &mut ctx.accounts.launchpad_purchase;
     let launchpad_signer = &ctx.accounts.launchpad_signer;
     let user_profile = &ctx.accounts.user_profile;
@@ -381,6 +390,8 @@ mod coin98_starship {
     let clock = Clock::get().unwrap();
 
     require!(launchpad.is_active, ErrorCode::Inactive);
+    require!(launchpad.total_sold + amount <= launchpad.total_limit, ErrorCode::ReachLimitSold);
+    require!(launchpad_purchase.amount_sold_in_token + amount <= launchpad_purchase.amount_limit_in_token, ErrorCode::MaxAmountReached);
     require!(launchpad_purchase.price_n > 0u64, ErrorCode::NotAllowed);
     require!(user_profile.is_registered, ErrorCode::Unauthorized);
     require!(
@@ -396,6 +407,9 @@ mod coin98_starship {
       launchpad.max_per_user == 0u64 || redeemed_amount <= launchpad.max_per_user,
       ErrorCode::MaxAmountReached,
     );
+
+    launchpad.total_sold += amount;
+    launchpad_purchase.amount_sold_in_token += amount;
 
     let amount_token0 = shared::calculate_sub_total(amount, launchpad_purchase.price_n, launchpad_purchase.price_d)
       .unwrap();

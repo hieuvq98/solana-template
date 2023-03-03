@@ -9,7 +9,10 @@ pub struct Launchpad {
   pub price_d: u64,
   pub min_per_tx: u64,
   pub max_per_user: u64,
-  pub limit_sale: u64,
+  pub total_limit: u64,
+  pub total_sold: u64,
+  pub amount_sold_in_sol: u64,
+  pub amount_limit_in_sol: u64,
   pub register_start_timestamp: i64,
   pub register_end_timestamp: i64,
   pub redeem_start_timestamp: i64,
@@ -22,7 +25,7 @@ pub struct Launchpad {
   pub sharing_fee: u64,
 }
 impl Launchpad {
-  pub const LEN: usize = 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 32 + 32 + 8 + 8;
+  pub const LEN: usize = 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 32 + 32 + 8 + 8;
 }
 
 #[account]
@@ -32,14 +35,15 @@ pub struct LaunchpadPurchase {
   pub price_d: u64,
   pub min_per_tx: u64,
   pub max_per_user: u64,
-  pub limit_sale: u64,
+  pub amount_sold_in_token: u64,
+  pub amount_limit_in_token: u64,
   pub launchpad: Pubkey,
   pub token_mint: Pubkey,
   pub sharing_fee: u64,
 }
 
 impl LaunchpadPurchase {
-  pub const LEN: usize = 1 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 8;
+  pub const LEN: usize = 1 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 8;
 }
 
 #[account]

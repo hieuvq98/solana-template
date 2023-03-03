@@ -38,4 +38,7 @@ pub enum ErrorCode {
 
   #[msg("Starship: Invalid Fee Owner.")]
   InvalidFeeOwner,
+
+  #[msg("Starship: Reach Limit Sold.")]
+  ReachLimitSold,
 }
