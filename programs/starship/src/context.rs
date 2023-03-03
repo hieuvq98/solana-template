@@ -331,6 +331,52 @@ pub struct CreateUserProfileContext<'info> {
 }
 
 #[derive(Accounts)]
+pub struct ClaimPendingTokenContext<'info> {
+  /// CHECK: Fee payer
+  pub user: Signer<'info>,
+
+  pub launchpad: Account<'info, Launchpad>,
+
+  /// CHECK: PDA to authorize launchpad tx
+  #[account(
+    seeds = [
+      &SIGNER_SEED_1,
+      launchpad.key().as_ref(),
+    ],
+    bump = launchpad.signer_nonce,
+  )]
+  pub launchpad_signer: AccountInfo<'info>,
+
+  #[account(
+    mut,
+    seeds = [
+      &USER_PROFILE_SEED_1,
+      launchpad.key().as_ref(),
+      user.key.as_ref(),
+    ],
+    bump = user_profile.nonce,
+  )]
+  pub user_profile: Account<'info, UserProfile>,
+
+  #[account(
+    mut,
+    constraint = launchpad_token1_account.owner == launchpad_signer.key() @ErrorCode::InvalidAccount,
+    constraint = launchpad_token1_account.mint == launchpad.token_mint @ErrorCode::InvalidAccount,
+  )]
+  pub launchpad_token1_account: Account<'info, TokenAccount>,
+
+  /// CHECK: User token account to receive token sale
+  #[account(mut)]
+  pub user_token1_account: AccountInfo<'info>,
+
+  /// CHECK: Solana native Token Program
+  #[account(
+    constraint = is_token_program(&token_program) @ErrorCode::InvalidAccount,
+  )]
+  pub token_program: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
 pub struct WithdrawSolContext<'info> {
   /// CHECK: Root
   #[account(mut)]

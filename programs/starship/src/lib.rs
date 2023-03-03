@@ -85,6 +85,7 @@ mod coin98_starship {
     register_end_timestamp: i64,
     redeem_start_timestamp: i64,
     redeem_end_timestamp: i64,
+    claim_start_timestamp: i64,
     private_sale_root: Option<[u8; 32]>,
   ) -> Result<()> {
 
@@ -109,6 +110,7 @@ mod coin98_starship {
     launchpad.register_end_timestamp = register_end_timestamp;
     launchpad.redeem_start_timestamp = redeem_start_timestamp;
     launchpad.redeem_end_timestamp = redeem_end_timestamp;
+    launchpad.claim_start_timestamp = claim_start_timestamp;
 
     if let Some(root) = private_sale_root {
       launchpad.private_sale_root = Some(root.to_vec());
@@ -364,9 +366,14 @@ mod coin98_starship {
       transfer_lamport(launchpad_signer, fee_owner, system_fee, &[seeds]).expect("Starship: CPI failed");
     }
 
-    // Transfer token 1
-    transfer_token(launchpad_signer, &launchpad_token_account.to_account_info(), &user_token_account, amount, &[seeds])
-      .expect("Starship: CPI failed.");
+    if clock.unix_timestamp < launchpad.claim_start_timestamp {
+      user_profile.pending_token += amount;
+    } else {
+      // Transfer token 1
+      transfer_token(launchpad_signer, &launchpad_token_account.to_account_info(), &user_token_account, amount, &[seeds])
+        .expect("Starship: CPI failed.");
+
+    }
 
     emit!(RedeemBySolEvent{
       amount,
@@ -450,15 +457,21 @@ mod coin98_starship {
       ).expect("Starship: CPI failed");
     }
 
-    // Transfer token 1
-    transfer_token(
-        &launchpad_signer,
-        &launchpad_token1_account.to_account_info(),
-        &user_token1_account.to_account_info(),
-        amount,
-        &[seeds]
-      )
-      .expect("Starship: CPI failed.");
+
+    if clock.unix_timestamp < launchpad.claim_start_timestamp {
+      user_profile.pending_token += amount;
+    } else {
+      // Transfer token 1
+      transfer_token(
+          &launchpad_signer,
+          &launchpad_token1_account.to_account_info(),
+          &user_token1_account.to_account_info(),
+          amount,
+          &[seeds]
+        )
+        .expect("Starship: CPI failed.");
+
+    }
 
     emit!(RedeemByTokenEvent{
       amount,
@@ -483,6 +496,42 @@ mod coin98_starship {
     emit!(CreateUserProfileEvent{
       user,
     });
+
+    Ok(())
+  }
+
+  pub fn claim_pending_token(
+    ctx: Context<ClaimPendingTokenContext>,
+    amount: u64
+  ) -> Result<()> {
+    let launchpad = &ctx.accounts.launchpad;
+    let launchpad_signer = &ctx.accounts.launchpad_signer;
+    let user_profile = &mut ctx.accounts.user_profile;
+    let launchpad_token1_account = &ctx.accounts.launchpad_token1_account;
+    let user_token1_account = &ctx.accounts.user_token1_account;
+
+    let clock = Clock::get().unwrap();
+
+    require!(clock.unix_timestamp > launchpad.claim_start_timestamp, ErrorCode::NotInTimeframe);
+    require!(user_profile.pending_token <= amount, ErrorCode::InvalidInput);
+
+    user_profile.pending_token -= amount;
+
+    let seeds: &[&[_]] = &[
+      &SIGNER_SEED_1,
+      launchpad.to_account_info().key.as_ref(),
+      &[launchpad.signer_nonce],
+    ];
+
+    // Transfer token 1
+    transfer_token(
+        &launchpad_signer,
+        &launchpad_token1_account.to_account_info(),
+        &user_token1_account.to_account_info(),
+        amount,
+        &[seeds]
+      )
+      .expect("Starship: CPI failed.");
 
     Ok(())
   }
