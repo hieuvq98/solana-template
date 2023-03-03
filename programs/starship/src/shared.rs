@@ -30,6 +30,29 @@ pub fn calculate_sub_total(
   }
 }
 
+pub fn calculate_out_total(
+  amount: u64,
+  price_n: u64,
+  price_d: u64,
+) -> Option<u64> {
+  if amount == 0 {
+    Some(0)
+  } else {
+    let x = u128::from(amount);
+    let n = u128::from(price_n);
+    let d = u128::from(price_d);
+    let result = x
+      .checked_mul(d)?
+      .checked_div(n)?;
+    let u64_max = u128::from(u64::MAX);
+    if result > u64_max {
+      None
+    } else {
+      Some(u64::try_from(result).unwrap())
+    }
+  }
+}
+
 pub fn calculate_system_fee(
   amount: u64,
   protocol_fee: u64,

@@ -421,15 +421,17 @@ mod coin98_starship {
       ).expect("Starship: CPI failed");
     }
 
+    let amount_out = shared::calculate_out_total(amount_sol, launchpad.price_n, launchpad.price_d).unwrap();
+
     if clock.unix_timestamp < launchpad.claim_start_timestamp {
-      user_profile.pending_token += amount;
+      user_profile.pending_token += amount_out;
     } else {
       // Transfer token 1
       transfer_token(
         launchpad_signer,
         &launchpad_token_account.to_account_info(),
         &user_token_account,
-        amount,
+        amount_out,
         &[seeds],
       ).expect("Starship: CPI failed.");
     }
@@ -518,15 +520,17 @@ mod coin98_starship {
       ).expect("Starship: CPI failed");
     }
 
+    let amount_out = shared::calculate_out_total(amount_token0, launchpad_purchase.price_n, launchpad_purchase.price_d).unwrap();
+
     if clock.unix_timestamp < launchpad.claim_start_timestamp {
-      user_profile.pending_token += amount;
+      user_profile.pending_token += amount_out;
     } else {
       // Transfer token 1
       transfer_token(
         &launchpad_signer,
         &launchpad_token1_account.to_account_info(),
         &user_token1_account.to_account_info(),
-        amount,
+        amount_out,
         &[seeds],
       ).expect("Starship: CPI failed.");
     }
