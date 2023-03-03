@@ -223,6 +223,7 @@ mod coin98_starship {
     min_per_tx: u64,
     max_per_user: u64,
     limit_sale: u64,
+    sharing_fee: u64
   ) -> Result<()> {
 
     require!(price_d > 0u64 || price_n == 0u64, ErrorCode::InvalidInput);
@@ -234,6 +235,7 @@ mod coin98_starship {
     launchpad_purchase.min_per_tx = min_per_tx;
     launchpad_purchase.max_per_user = max_per_user;
     launchpad_purchase.limit_sale = limit_sale;
+    launchpad_purchase.sharing_fee = sharing_fee;
 
     emit!(SetLaunchpadPuchaseEvent{
       price_n,
@@ -418,7 +420,7 @@ mod coin98_starship {
       &[launchpad.signer_nonce],
     ];
 
-    let system_fee = shared::calculate_system_fee(amount_token0, launchpad.protocol_fee, launchpad.sharing_fee);
+    let system_fee = shared::calculate_system_fee(amount_token0, launchpad.protocol_fee, launchpad_purchase.sharing_fee);
 
     if system_fee > 0 && system_fee < amount_token0 {
       transfer_token(
