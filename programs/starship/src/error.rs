@@ -3,14 +3,20 @@ use anchor_lang::prelude::*;
 #[error_code]
 pub enum ErrorCode {
 
-  #[msg("Starship: Forbidden.")]
-  Forbidden,
+  #[msg("Starship: Invalid account.")]
+  InvalidAccount,
+
+  #[msg("Starship: Invalid Fee.")]
+  InvalidFee,
 
   #[msg("Starship: Invalid input.")]
   InvalidInput,
 
-  #[msg("Starship: Invalid account.")]
-  InvalidAccount,
+  #[msg("Starship: Launchpad inactive.")]
+  LaunchpadInactive,
+
+  #[msg("Starship: Launchpad started.")]
+  LaunchpadStarted,
 
   #[msg("Starship: Max amount reached")]
   MaxAmountReached,
@@ -30,21 +36,9 @@ pub enum ErrorCode {
   #[msg("Starship: Not an owner.")]
   Unauthorized,
 
-  #[msg("Starship: Inactive.")]
-  Inactive,
-
   #[msg("Starship: Max fee reached.")]
   MaxFeeReached,
 
-  #[msg("Starship: Invalid Fee Owner.")]
-  InvalidFeeOwner,
-
   #[msg("Starship: Reach Limit Sold.")]
   ReachLimitSold,
-
-  #[msg("Starship: Invalid Fee.")]
-  InvalidFee,
-
-  #[msg("Starship: Launchpad Started.")]
-  LaunchpadStarted,
 }

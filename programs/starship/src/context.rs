@@ -1,22 +1,32 @@
 use anchor_lang::prelude::*;
 
-use crate::constant::{
-  LAUNCHPAD_SEED_1,
-  LAUNCHPAD_PURCHASE_SEED_1,
-  USER_PROFILE_SEED_1,
-  SIGNER_SEED_1,
-  FEE_OWNER,
-  WHITELIST_TOKEN_SEED_1
+use crate::{
+  constant::{
+    FEE_OWNER,
+    LAUNCHPAD_PURCHASE_SEED_1,
+    LAUNCHPAD_SEED_1,
+    SIGNER_SEED_1,
+    USER_PROFILE_SEED_1,
+    WHITELIST_TOKEN_SEED_1,
+  },
+  error::{
+    ErrorCode,
+  },
+  state::{
+    Launchpad,
+    LaunchpadPurchase,
+    UserProfile,
+    WhitelistToken,
+  },
 };
-use crate::error::ErrorCode;
-use crate::state::{
-  Launchpad,
-  LaunchpadPurchase,
-  UserProfile,
-  WhitelistToken
+use crate::external::{
+  anchor_spl_token::{
+    TokenAccount,
+  },
+  spl_token::{
+    is_token_program
+  },
 };
-use crate::external::spl_token::is_token_program;
-use crate::external::anchor_spl_token::TokenAccount;
 
 #[derive(Accounts)]
 #[instruction(launchpad_path: Vec<u8>)]
@@ -263,7 +273,10 @@ pub struct RedeemBySolContext<'info> {
   pub launchpad_token_account: Account<'info, TokenAccount>,
 
   /// CHECK: Fee owner of system fee
-  #[account(mut)]
+  #[account(
+    mut,
+    constraint = fee_owner.key().to_string() == FEE_OWNER @ErrorCode::InvalidAccount,
+  )]
   pub fee_owner: AccountInfo<'info>,
 
   pub system_program: Program<'info, System>,

@@ -1,10 +1,10 @@
+use std::convert::{
+  TryFrom,
+};
 use solana_program::{
   keccak::{
     hashv,
   },
-};
-use std::convert::{
-  TryFrom,
 };
 
 pub fn calculate_sub_total(

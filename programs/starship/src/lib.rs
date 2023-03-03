@@ -1,31 +1,44 @@
 pub mod constant;
 pub mod context;
 pub mod error;
-pub mod shared;
-pub mod state;
 pub mod external;
 pub mod events;
+pub mod shared;
+pub mod state;
 
+use std::{
+  convert::{
+    TryInto,
+  },
+};
 use anchor_lang::prelude::*;
-use solana_program::keccak::hash;
-use std::convert::TryInto;
-use crate::error::ErrorCode;
-use crate::constant::{
-  ROOT_KEYS,
-  FEE_OWNER,
-  SIGNER_SEED_1,
+use solana_program::{
+  keccak::{
+    hash,
+  },
 };
-use crate::context::*;
-use crate::state::{
-  WhitelistParams
+use crate::{
+  constant::{
+    ROOT_KEYS,
+    SIGNER_SEED_1,
+  },
+  context::*,
+  error::{
+    ErrorCode,
+  },
+  events::*,
+  state::{
+    WhitelistParams,
+  },
 };
-use crate::external::anchor_spl_system::{
-  transfer_lamport,
+use crate::external::{
+  anchor_spl_system::{
+    transfer_lamport,
+  },
+  anchor_spl_token::{
+    transfer_token,
+  },
 };
-use crate::external::anchor_spl_token::{
-  transfer_token,
-};
-use crate::events::*;
 
 #[cfg(feature = "mainnet")]
 declare_id!("SPadMQQeXyUGprwgt2SM8xZWVdKJ82UpWstWBLEDJwj");
@@ -71,7 +84,7 @@ mod coin98_starship {
 
     Ok(())
   }
-  
+
   #[access_control(verify_root(*ctx.accounts.root.key))]
   pub fn create_whitelist_token(
     ctx: Context<CreateWhitelistTokenContext>,
@@ -310,7 +323,7 @@ mod coin98_starship {
     let launchpad = &ctx.accounts.launchpad;
     let clock = Clock::get().unwrap();
 
-    require!(launchpad.is_active, ErrorCode::Inactive);
+    require!(launchpad.is_active, ErrorCode::LaunchpadInactive);
     require!(
       clock.unix_timestamp >= launchpad.register_start_timestamp && clock.unix_timestamp <= launchpad.register_end_timestamp,
       ErrorCode::NotInTimeframe,
@@ -343,17 +356,15 @@ mod coin98_starship {
   ) -> Result<()> {
 
     let user = &ctx.accounts.user;
-    let launchpad = &mut ctx.accounts.launchpad;
+    let launchpad = &ctx.accounts.launchpad;
     let launchpad_signer = &ctx.accounts.launchpad_signer;
-    let user_profile = &mut ctx.accounts.user_profile;
+    let user_profile = &ctx.accounts.user_profile;
     let user_token_account = &ctx.accounts.user_token_account;
     let launchpad_token_account = &ctx.accounts.launchpad_token_account;
     let fee_owner = &ctx.accounts.fee_owner;
     let clock = Clock::get().unwrap();
 
-    require!(fee_owner.key().to_string() == FEE_OWNER, ErrorCode::InvalidFeeOwner);
-
-    require!(launchpad.is_active, ErrorCode::Inactive);
+    require!(launchpad.is_active, ErrorCode::LaunchpadInactive);
     require!(launchpad.total_sold + amount <= launchpad.total_limit, ErrorCode::ReachLimitSold);
     require!(launchpad.amount_sold_in_sol + amount <= launchpad.amount_limit_in_sol, ErrorCode::MaxAmountReached);
     require!(launchpad.price_n > 0u64, ErrorCode::NotAllowed);
@@ -372,16 +383,24 @@ mod coin98_starship {
       ErrorCode::MaxAmountReached,
     );
 
+    let launchpad = &mut ctx.accounts.launchpad;
+
     launchpad.total_sold += amount;
     launchpad.amount_sold_in_sol += amount;
-
-    user_profile.redeemed_token = redeemed_amount;
 
     let amount_sol = shared::calculate_sub_total(amount, launchpad.price_n, launchpad.price_d)
       .unwrap();
     // Transfer lamports
-    transfer_lamport(&user.to_account_info(), &launchpad_signer.to_account_info(), amount_sol, &[])
-      .expect("Starship: CPI failed.");
+    transfer_lamport(
+      &user.to_account_info(),
+      &launchpad_signer.to_account_info(),
+      amount_sol,
+      &[],
+    ).expect("Starship: CPI failed.");
+
+    let user_profile = &mut ctx.accounts.user_profile;
+
+    user_profile.redeemed_token = redeemed_amount;
 
     let seeds: &[&[_]] = &[
       &SIGNER_SEED_1,
@@ -394,21 +413,31 @@ mod coin98_starship {
     require!(system_fee < amount_sol, ErrorCode::InvalidFee);
 
     if system_fee > 0 {
-      transfer_lamport(launchpad_signer, fee_owner, system_fee, &[seeds]).expect("Starship: CPI failed");
+      transfer_lamport(
+        launchpad_signer,
+        fee_owner,
+        system_fee,
+        &[seeds],
+      ).expect("Starship: CPI failed");
     }
 
     if clock.unix_timestamp < launchpad.claim_start_timestamp {
       user_profile.pending_token += amount;
     } else {
       // Transfer token 1
-      transfer_token(launchpad_signer, &launchpad_token_account.to_account_info(), &user_token_account, amount, &[seeds])
-        .expect("Starship: CPI failed.");
-
+      transfer_token(
+        launchpad_signer,
+        &launchpad_token_account.to_account_info(),
+        &user_token_account,
+        amount,
+        &[seeds],
+      ).expect("Starship: CPI failed.");
     }
 
     emit!(RedeemBySolEvent{
       amount,
     });
+
     Ok(())
   }
 
@@ -418,8 +447,8 @@ mod coin98_starship {
   ) -> Result<()> {
 
     let user = &ctx.accounts.user;
-    let launchpad = &mut ctx.accounts.launchpad;
-    let launchpad_purchase = &mut ctx.accounts.launchpad_purchase;
+    let launchpad = &ctx.accounts.launchpad;
+    let launchpad_purchase = &ctx.accounts.launchpad_purchase;
     let launchpad_signer = &ctx.accounts.launchpad_signer;
     let user_profile = &ctx.accounts.user_profile;
     let user_token0_account = &ctx.accounts.user_token0_account;
@@ -429,7 +458,7 @@ mod coin98_starship {
     let fee_owner_token0_account = &ctx.accounts.fee_owner_token0_account;
     let clock = Clock::get().unwrap();
 
-    require!(launchpad.is_active, ErrorCode::Inactive);
+    require!(launchpad.is_active, ErrorCode::LaunchpadInactive);
     require!(launchpad.total_sold + amount <= launchpad.total_limit, ErrorCode::ReachLimitSold);
     require!(launchpad_purchase.amount_sold_in_token + amount <= launchpad_purchase.amount_limit_in_token, ErrorCode::MaxAmountReached);
     require!(launchpad_purchase.price_n > 0u64, ErrorCode::NotAllowed);
@@ -448,21 +477,22 @@ mod coin98_starship {
       ErrorCode::MaxAmountReached,
     );
 
+    let launchpad = &mut ctx.accounts.launchpad;
+    let launchpad_purchase = &mut ctx.accounts.launchpad_purchase;
+
     launchpad.total_sold += amount;
     launchpad_purchase.amount_sold_in_token += amount;
 
     let amount_token0 = shared::calculate_sub_total(amount, launchpad_purchase.price_n, launchpad_purchase.price_d)
       .unwrap();
-
     // Transfer token 0
     transfer_token(
-        &user.to_account_info(),
-        &user_token0_account.to_account_info(),
-        &launchpad_token0_account.to_account_info(),
-        amount_token0,
-        &[]
-      )
-      .expect("Starship: CPI failed.");
+      &user.to_account_info(),
+      &user_token0_account.to_account_info(),
+      &launchpad_token0_account.to_account_info(),
+      amount_token0,
+      &[],
+    ).expect("Starship: CPI failed.");
 
     let user_profile = &mut ctx.accounts.user_profile;
 
@@ -484,24 +514,21 @@ mod coin98_starship {
         &launchpad_token0_account.to_account_info(),
         &fee_owner_token0_account.to_account_info(),
         system_fee,
-        &[seeds]
+        &[seeds],
       ).expect("Starship: CPI failed");
     }
-
 
     if clock.unix_timestamp < launchpad.claim_start_timestamp {
       user_profile.pending_token += amount;
     } else {
       // Transfer token 1
       transfer_token(
-          &launchpad_signer,
-          &launchpad_token1_account.to_account_info(),
-          &user_token1_account.to_account_info(),
-          amount,
-          &[seeds]
-        )
-        .expect("Starship: CPI failed.");
-
+        &launchpad_signer,
+        &launchpad_token1_account.to_account_info(),
+        &user_token1_account.to_account_info(),
+        amount,
+        &[seeds],
+      ).expect("Starship: CPI failed.");
     }
 
     emit!(RedeemByTokenEvent{
@@ -556,13 +583,12 @@ mod coin98_starship {
 
     // Transfer token 1
     transfer_token(
-        &launchpad_signer,
-        &launchpad_token1_account.to_account_info(),
-        &user_token1_account.to_account_info(),
-        amount,
-        &[seeds]
-      )
-      .expect("Starship: CPI failed.");
+      &launchpad_signer,
+      &launchpad_token1_account.to_account_info(),
+      &user_token1_account.to_account_info(),
+      amount,
+      &[seeds],
+    ).expect("Starship: CPI failed.");
 
     Ok(())
   }
@@ -582,8 +608,12 @@ mod coin98_starship {
       &[launchpad.signer_nonce],
     ];
 
-    transfer_lamport(&launchpad_signer.to_account_info(), &root.to_account_info(), amount, &[seeds])
-      .expect("Starship: CPI failed.");
+    transfer_lamport(
+      &launchpad_signer.to_account_info(),
+      &root.to_account_info(),
+      amount,
+      &[seeds],
+    ).expect("Starship: CPI failed.");
 
     emit!(WithdrawSolEvent{
       amount,
@@ -608,8 +638,13 @@ mod coin98_starship {
       &[launchpad.signer_nonce],
     ];
 
-    transfer_token(launchpad_signer, &from, &to, amount, &[seeds])
-      .expect("Starship: CPI failed.");
+    transfer_token(
+      launchpad_signer,
+      &from,
+      &to,
+      amount,
+      &[seeds],
+    ).expect("Starship: CPI failed.");
 
     emit!(WithdrawTokenEvent{
       amount,

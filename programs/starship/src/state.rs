@@ -20,8 +20,8 @@ pub struct Launchpad {
   pub claim_start_timestamp: i64,
   pub private_sale_root: Option<Vec<u8>>,
   pub token_mint: Pubkey,
-  pub owner: Pubkey, // For compability reason
-  pub new_owner: Pubkey, // For compability reason
+  pub owner: Pubkey,
+  pub new_owner: Pubkey,
   pub protocol_fee: u64,
   pub sharing_fee: u64,
 }
