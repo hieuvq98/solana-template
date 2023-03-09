@@ -91,8 +91,8 @@ mod coin98_starship {
     token_mint: Pubkey
   ) -> Result<()> {
 
-    let whitelist = &mut ctx.accounts.withlist;
-    whitelist.nonce = *ctx.bumps.get("withlist").unwrap();
+    let whitelist = &mut ctx.accounts.whitelist;
+    whitelist.nonce = *ctx.bumps.get("whitelist").unwrap();
 
     emit!(CreateWhitelistTokenEvent {
       token_mint
@@ -385,9 +385,6 @@ mod coin98_starship {
 
     let launchpad = &mut ctx.accounts.launchpad;
 
-    launchpad.total_sold += amount;
-    launchpad.amount_sold_in_sol += amount;
-
     let amount_sol = shared::calculate_sub_total(amount, launchpad.price_n, launchpad.price_d)
       .unwrap();
     // Transfer lamports
@@ -423,10 +420,14 @@ mod coin98_starship {
 
     let amount_out = shared::calculate_out_total(amount_sol, launchpad.price_n, launchpad.price_d).unwrap();
 
+    launchpad.total_sold += amount_out;
+    launchpad.amount_sold_in_sol += amount;
+
     if clock.unix_timestamp < launchpad.claim_start_timestamp {
       user_profile.pending_token += amount_out;
     } else {
       // Transfer token 1
+      launchpad.total_claimed += amount;
       transfer_token(
         launchpad_signer,
         &launchpad_token_account.to_account_info(),
@@ -482,9 +483,6 @@ mod coin98_starship {
     let launchpad = &mut ctx.accounts.launchpad;
     let launchpad_purchase = &mut ctx.accounts.launchpad_purchase;
 
-    launchpad.total_sold += amount;
-    launchpad_purchase.amount_sold_in_token += amount;
-
     let amount_token0 = shared::calculate_sub_total(amount, launchpad_purchase.price_n, launchpad_purchase.price_d)
       .unwrap();
     // Transfer token 0
@@ -522,10 +520,14 @@ mod coin98_starship {
 
     let amount_out = shared::calculate_out_total(amount_token0, launchpad_purchase.price_n, launchpad_purchase.price_d).unwrap();
 
+    launchpad.total_sold += amount_out;
+    launchpad_purchase.amount_sold_in_token += amount_out;
+
     if clock.unix_timestamp < launchpad.claim_start_timestamp {
       user_profile.pending_token += amount_out;
     } else {
       // Transfer token 1
+      launchpad.total_claimed += amount_out;
       transfer_token(
         &launchpad_signer,
         &launchpad_token1_account.to_account_info(),
@@ -566,7 +568,7 @@ mod coin98_starship {
     ctx: Context<ClaimPendingTokenContext>,
     amount: u64
   ) -> Result<()> {
-    let launchpad = &ctx.accounts.launchpad;
+    let launchpad = &mut ctx.accounts.launchpad;
     let launchpad_signer = &ctx.accounts.launchpad_signer;
     let user_profile = &mut ctx.accounts.user_profile;
     let launchpad_token1_account = &ctx.accounts.launchpad_token1_account;
@@ -578,6 +580,7 @@ mod coin98_starship {
     require!(user_profile.pending_token <= amount, ErrorCode::InvalidInput);
 
     user_profile.pending_token -= amount;
+    launchpad.total_claimed += amount;
 
     let seeds: &[&[_]] = &[
       &SIGNER_SEED_1,
@@ -629,11 +632,12 @@ mod coin98_starship {
   #[access_control(verify_owner(ctx.accounts.launchpad.owner, *ctx.accounts.owner.key))]
   pub fn withdraw_token(
     ctx: Context<WithdrawTokenContext>,
+    token_mint: Pubkey,
     amount: u64
   ) -> Result<()> {
     let launchpad = &ctx.accounts.launchpad;
     let launchpad_signer = &ctx.accounts.launchpad_signer;
-    let from = &ctx.accounts.from;
+    let from = &mut ctx.accounts.from;
     let to = &ctx.accounts.to;
 
     let seeds: &[&[_]] = &[
@@ -644,11 +648,18 @@ mod coin98_starship {
 
     transfer_token(
       launchpad_signer,
-      &from,
+      &from.to_account_info(),
       &to,
       amount,
       &[seeds],
     ).expect("Starship: CPI failed.");
+
+    from.reload()?;
+
+    if token_mint == launchpad.token_mint {
+      let left_balance = from.amount;
+      require!(left_balance >= launchpad.total_sold - launchpad.total_claimed, ErrorCode::ReachLimitWithdraw);
+    }
 
     emit!(WithdrawTokenEvent{
       amount,

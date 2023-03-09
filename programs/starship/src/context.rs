@@ -69,7 +69,7 @@ pub struct CreateWhitelistTokenContext<'info> {
     payer = root,
     space = 16 + WhitelistToken::LEN
   )]
-  pub withlist: Account<'info, WhitelistToken>,
+  pub whitelist: Account<'info, WhitelistToken>,
 
 
   pub system_program: Program<'info, System>,
@@ -89,10 +89,10 @@ pub struct DeleteWhitelistTokenContext<'info> {
       &WHITELIST_TOKEN_SEED_1,
       &token_mint.as_ref()
     ],
-    bump = withlist.nonce,
+    bump = whitelist.nonce,
     close = root
   )]
-  pub withlist: Account<'info, WhitelistToken>,
+  pub whitelist: Account<'info, WhitelistToken>,
 
   pub system_program: Program<'info, System>,
 }
@@ -398,6 +398,7 @@ pub struct ClaimPendingTokenContext<'info> {
   /// CHECK: Fee payer
   pub user: Signer<'info>,
 
+  #[account(mut)]
   pub launchpad: Account<'info, Launchpad>,
 
   /// CHECK: PDA to authorize launchpad tx
@@ -462,6 +463,7 @@ pub struct WithdrawSolContext<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(token_mint: Pubkey, _amount: u64)]
 pub struct WithdrawTokenContext<'info> {
   /// CHECK: Root
   #[account(mut)]
@@ -479,9 +481,12 @@ pub struct WithdrawTokenContext<'info> {
   )]
   pub launchpad_signer: AccountInfo<'info>,
 
-  /// CHECK: From token account
-  #[account(mut)]
-  pub from: AccountInfo<'info>,
+  #[account(
+    mut,
+    constraint = from.mint == token_mint @ErrorCode::InvalidAccount,
+  )]
+  pub from: Account<'info, TokenAccount>,
+
   /// CHECK: To token account
   #[account(mut)]
   pub to: AccountInfo<'info>,

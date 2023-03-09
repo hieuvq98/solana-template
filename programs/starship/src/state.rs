@@ -11,6 +11,7 @@ pub struct Launchpad {
   pub max_per_user: u64,
   pub total_limit: u64,
   pub total_sold: u64,
+  pub total_claimed: u64,
   pub amount_sold_in_sol: u64,
   pub amount_limit_in_sol: u64,
   pub register_start_timestamp: i64,
@@ -26,7 +27,7 @@ pub struct Launchpad {
   pub sharing_fee: u64,
 }
 impl Launchpad {
-  pub const LEN: usize = 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 32 + 32 + 8 + 8;
+  pub const LEN: usize = 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 32 + 32 + 8 + 8;
 }
 
 #[account]
