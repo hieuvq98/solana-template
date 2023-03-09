@@ -95,7 +95,7 @@ mod coin98_starship {
     whitelist.nonce = *ctx.bumps.get("whitelist").unwrap();
 
     emit!(CreateWhitelistTokenEvent {
-      token_mint
+      token_mint,
     });
 
     Ok(())

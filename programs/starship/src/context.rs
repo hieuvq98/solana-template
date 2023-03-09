@@ -157,7 +157,14 @@ pub struct CreateLaunchpadPurchaseContext<'info> {
 
   pub launchpad: Account<'info, Launchpad>,
 
-  pub whitelist: Account<'info, WhitelistToken>,
+  #[account(
+    seeds = [
+      &WHITELIST_TOKEN_SEED_1,
+      &token_mint.as_ref(),
+    ],
+    bump = whitelist_token_mint.nonce,
+  )]
+  pub whitelist_token_mint: Account<'info, WhitelistToken>,
 
   #[account(
     init,
