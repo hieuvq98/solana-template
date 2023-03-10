@@ -44,4 +44,10 @@ pub enum ErrorCode {
 
   #[msg("Starship: Reach Limit Withdraw.")]
   ReachLimitWithdraw,
+
+  #[msg("Starship: Invalid Validate Signature Instruction.")]
+  InvalidValidateSignInstruction,
+
+  #[msg("Starship: Signature Verification Failed.")]
+  SigVerificationFailed,
 }

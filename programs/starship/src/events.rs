@@ -28,7 +28,7 @@ pub struct SetLaunchpadEvent {
   pub register_end_timestamp: i64,
   pub redeem_start_timestamp: i64,
   pub redeem_end_timestamp: i64,
-  pub private_sale_root: Option<[u8; 32]>,
+  pub whitelist_authority: Option<Pubkey>,
 }
 
 #[event]
@@ -72,8 +72,7 @@ pub struct SetLaunchpadStatusEvent {
 
 #[event]
 pub struct RegisterEvent {
-  pub index: u32,
-  pub proofs: Vec<[u8; 32]>
+  pub whitelist_signature: [u8; 64]
 }
 
 #[event]

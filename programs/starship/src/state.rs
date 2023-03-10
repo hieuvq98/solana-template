@@ -19,7 +19,7 @@ pub struct Launchpad {
   pub redeem_start_timestamp: i64,
   pub redeem_end_timestamp: i64,
   pub claim_start_timestamp: i64,
-  pub private_sale_root: Option<Vec<u8>>,
+  pub whitelist_authority: Option<Pubkey>,
   pub token_mint: Pubkey,
   pub owner: Pubkey,
   pub new_owner: Pubkey,
@@ -27,7 +27,7 @@ pub struct Launchpad {
   pub sharing_fee: u64,
 }
 impl Launchpad {
-  pub const LEN: usize = 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 32 + 32 + 32 + 8 + 8;
+  pub const LEN: usize = 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 33 + 32 + 32 + 32 + 8 + 8;
 }
 
 #[account]
@@ -63,7 +63,7 @@ impl UserProfile {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Default)]
 pub struct WhitelistParams {
-  pub index: u32,
+  pub launchpad: Pubkey,
   pub address: Pubkey,
 }
 
