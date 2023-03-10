@@ -41,4 +41,7 @@ pub enum ErrorCode {
 
   #[msg("Starship: Reach Limit Sold.")]
   ReachLimitSold,
+
+  #[msg("Starship: Reach Limit Withdraw.")]
+  ReachLimitWithdraw,
 }
