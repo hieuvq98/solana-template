@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::sysvar::instructions::ID as SysvarInstructionId;
 
 use crate::{
   constant::{
@@ -233,6 +234,12 @@ pub struct RegisterContext<'info> {
     constraint = user_profile.user == user.key() @ErrorCode::InvalidAccount,
   )]
   pub user_profile: Account<'info, UserProfile>,
+
+  /// CHECK: check by address
+  #[account(
+    address = SysvarInstructionId
+  )]
+  pub sysvar_program: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]

@@ -6,16 +6,14 @@ pub mod events;
 pub mod shared;
 pub mod state;
 
-use std::{
-  convert::{
-    TryInto,
-  },
-};
 use anchor_lang::prelude::*;
 use solana_program::{
   keccak::{
     hash,
   },
+  ed25519_program::ID as ED25519_ID,
+  instruction::Instruction,
+  sysvar::instructions::load_instruction_at_checked
 };
 use crate::{
   constant::{
@@ -128,7 +126,7 @@ mod coin98_starship {
     redeem_start_timestamp: i64,
     redeem_end_timestamp: i64,
     claim_start_timestamp: i64,
-    private_sale_root: Option<[u8; 32]>,
+    whitelist_authority: Option<Pubkey>,
   ) -> Result<()> {
 
     let clock = Clock::get().unwrap();
@@ -155,12 +153,7 @@ mod coin98_starship {
     launchpad.redeem_start_timestamp = redeem_start_timestamp;
     launchpad.redeem_end_timestamp = redeem_end_timestamp;
     launchpad.claim_start_timestamp = claim_start_timestamp;
-
-    if let Some(root) = private_sale_root {
-      launchpad.private_sale_root = Some(root.to_vec());
-    } else {
-      launchpad.private_sale_root = None;
-    }
+    launchpad.whitelist_authority = whitelist_authority;
 
     emit!(SetLaunchpadEvent{
       price_n,
@@ -173,7 +166,7 @@ mod coin98_starship {
       register_end_timestamp,
       redeem_start_timestamp,
       redeem_end_timestamp,
-      private_sale_root,
+      whitelist_authority,
     });
 
     Ok(())
@@ -315,8 +308,7 @@ mod coin98_starship {
 
   pub fn register(
     ctx: Context<RegisterContext>,
-    index: u32,
-    proofs: Vec<[u8; 32]>,
+    whitelist_signature: [u8; 64]
   ) -> Result<()> {
 
     let user = &ctx.accounts.user;
@@ -328,23 +320,27 @@ mod coin98_starship {
       clock.unix_timestamp >= launchpad.register_start_timestamp && clock.unix_timestamp <= launchpad.register_end_timestamp,
       ErrorCode::NotInTimeframe,
     );
-    if let Some(root) = &launchpad.private_sale_root {
+    if let Some(authority) = &launchpad.whitelist_authority {
+      let ix: Instruction = load_instruction_at_checked(0, &ctx.accounts.sysvar_program)?;
+
+      require!(ix.program_id == ED25519_ID, ErrorCode::InvalidValidateSignInstruction);
+      require!(ix.accounts.len() == 0, ErrorCode::InvalidValidateSignInstruction);
+
       let whitelist = WhitelistParams {
-        index,
-        address: *user.key
-      };
-      let whitelist_data = whitelist.try_to_vec().unwrap();
-      let leaf = hash(&whitelist_data[..]);
-      let is_valid_proof = shared::verify_proof(&proofs, &root.clone().try_into().unwrap(), &leaf.to_bytes());
-      require!(is_valid_proof, ErrorCode::Unauthorized);
+        launchpad: launchpad.key(),
+        address: user.key()
+      }.try_to_vec().unwrap();
+      let hashed_message = hash(&whitelist[..]).to_bytes();
+
+      require!(ix.data.len() == (16 + 64 + 32 + hashed_message.len()), ErrorCode::InvalidValidateSignInstruction);
+      shared::check_ed25519_data(&ix.data, authority.as_ref(), &hashed_message, &whitelist_signature)?;
     }
 
     let user_profile = &mut ctx.accounts.user_profile;
     user_profile.is_registered = true;
 
     emit!(RegisterEvent{
-      index,
-      proofs,
+      whitelist_signature
     });
 
     Ok(())
