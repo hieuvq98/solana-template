@@ -5,23 +5,9 @@ authors = ["Coin98 Labs"]
 license = "Apache-2.0"
 edition = "2021"
 
-[dependencies]
-anchor-lang = "=0.26.0"
-arrayref = "=0.3.6"
-num_enum = "=0.5.10"
-solana-program = "=1.14.15"
-
-[dev-dependencies]
-rand = "=0.8.5"
-solana-cli-config = "=1.14.15"
-solana-program-test = "=1.14.15"
-solana-sdk = "=1.14.15"
-tokio = "=1.14.1"
-# dependency fix
-proc-macro-crate = "=1.2.1"
-security-framework = "=2.5.0"
-time = "=0.3.15"
-zstd-sys = "=2.0.4+zstd.1.5.2"
+[lib]
+name = "coin98_starship"
+crate-type = ["cdylib", "lib"]
 
 [features]
 cpi = ["no-entrypoint"]
@@ -31,6 +17,20 @@ mainnet = []
 no-entrypoint = []
 no-idl = []
 
-[lib]
-name = "coin98_starship"
-crate-type = ["cdylib", "lib"]
+[dependencies]
+anchor-lang = "~0.26.0"
+arrayref = "~0.3.6"
+num_enum = "~0.5.10"
+solana-program = "~1.14.15"
+
+[dev-dependencies]
+rand = "~0.8.5"
+solana-cli-config = "~1.14.15"
+solana-program-test = "~1.14.15"
+solana-sdk = "~1.14.15"
+tokio = "~1.14.1"
+# dependency fix
+proc-macro-crate = "~1.2.1"
+security-framework = "~2.5.0"
+time = "~0.3.15"
+zstd-sys = "~2.0.4+zstd.1.5.2"

@@ -2,18 +2,26 @@ pub mod constant;
 pub mod context;
 pub mod error;
 pub mod external;
-pub mod events;
-pub mod shared;
+pub mod event;
 pub mod state;
+pub mod util;
 
 use anchor_lang::prelude::*;
 use solana_program::{
   keccak::{
     hash,
   },
-  ed25519_program::ID as ED25519_ID,
-  instruction::Instruction,
-  sysvar::instructions::load_instruction_at_checked
+  ed25519_program::{
+    ID as ED25519_ID,
+  },
+  instruction::{
+    Instruction,
+  },
+  sysvar::{
+    instructions::{
+      load_instruction_at_checked,
+    },
+  },
 };
 use crate::{
   constant::{
@@ -24,10 +32,16 @@ use crate::{
   error::{
     ErrorCode,
   },
-  events::*,
+  event::*,
   state::{
     WhitelistParams,
   },
+  util::{
+    check_ed25519_data,
+    calculate_out_total,
+    calculate_sub_total,
+    calculate_system_fee,
+  }
 };
 use crate::external::{
   anchor_spl_system::{
@@ -333,7 +347,7 @@ mod coin98_starship {
       let hashed_message = hash(&whitelist[..]).to_bytes();
 
       require!(ix.data.len() == (16 + 64 + 32 + hashed_message.len()), ErrorCode::InvalidValidateSignInstruction);
-      shared::check_ed25519_data(&ix.data, authority.as_ref(), &hashed_message, &whitelist_signature)?;
+      check_ed25519_data(&ix.data, authority.as_ref(), &hashed_message, &whitelist_signature)?;
     }
 
     let user_profile = &mut ctx.accounts.user_profile;
@@ -381,7 +395,7 @@ mod coin98_starship {
 
     let launchpad = &mut ctx.accounts.launchpad;
 
-    let amount_sol = shared::calculate_sub_total(amount, launchpad.price_n, launchpad.price_d)
+    let amount_sol = calculate_sub_total(amount, launchpad.price_n, launchpad.price_d)
       .unwrap();
     // Transfer lamports
     transfer_lamport(
@@ -401,7 +415,7 @@ mod coin98_starship {
       &[launchpad.signer_nonce],
     ];
 
-    let system_fee = shared::calculate_system_fee(amount_sol, launchpad.protocol_fee, launchpad.sharing_fee);
+    let system_fee = calculate_system_fee(amount_sol, launchpad.protocol_fee, launchpad.sharing_fee);
 
     require!(system_fee < amount_sol, ErrorCode::InvalidFee);
 
@@ -414,7 +428,7 @@ mod coin98_starship {
       ).expect("Starship: CPI failed");
     }
 
-    let amount_out = shared::calculate_out_total(amount_sol, launchpad.price_n, launchpad.price_d).unwrap();
+    let amount_out = calculate_out_total(amount_sol, launchpad.price_n, launchpad.price_d).unwrap();
 
     launchpad.total_sold += amount_out;
     launchpad.amount_sold_in_sol += amount;
@@ -479,7 +493,7 @@ mod coin98_starship {
     let launchpad = &mut ctx.accounts.launchpad;
     let launchpad_purchase = &mut ctx.accounts.launchpad_purchase;
 
-    let amount_token0 = shared::calculate_sub_total(amount, launchpad_purchase.price_n, launchpad_purchase.price_d)
+    let amount_token0 = calculate_sub_total(amount, launchpad_purchase.price_n, launchpad_purchase.price_d)
       .unwrap();
     // Transfer token 0
     transfer_token(
@@ -500,7 +514,7 @@ mod coin98_starship {
       &[launchpad.signer_nonce],
     ];
 
-    let system_fee = shared::calculate_system_fee(amount_token0, launchpad.protocol_fee, launchpad_purchase.sharing_fee);
+    let system_fee = calculate_system_fee(amount_token0, launchpad.protocol_fee, launchpad_purchase.sharing_fee);
 
     require!(system_fee < amount_token0, ErrorCode::InvalidFee);
 
@@ -514,7 +528,7 @@ mod coin98_starship {
       ).expect("Starship: CPI failed");
     }
 
-    let amount_out = shared::calculate_out_total(amount_token0, launchpad_purchase.price_n, launchpad_purchase.price_d).unwrap();
+    let amount_out = calculate_out_total(amount_token0, launchpad_purchase.price_n, launchpad_purchase.price_d).unwrap();
 
     launchpad.total_sold += amount_out;
     launchpad_purchase.amount_sold_in_token += amount_out;

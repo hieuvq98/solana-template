@@ -1,5 +1,11 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::sysvar::instructions::ID as SysvarInstructionId;
+use solana_program::{
+  sysvar::{
+    instructions::{
+      ID as SYSVAR_INSTRUCTION_ID,
+    },
+  },
+};
 
 use crate::{
   constant::{
@@ -237,7 +243,7 @@ pub struct RegisterContext<'info> {
 
   /// CHECK: check by address
   #[account(
-    address = SysvarInstructionId
+    address = SYSVAR_INSTRUCTION_ID,
   )]
   pub sysvar_program: AccountInfo<'info>,
 }

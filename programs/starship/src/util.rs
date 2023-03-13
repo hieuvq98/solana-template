@@ -1,9 +1,12 @@
 use std::convert::{
   TryFrom,
 };
-use anchor_lang::prelude::{msg, Result};
-
-use crate::error::ErrorCode;
+use anchor_lang::prelude::*;
+use crate::{
+  error::{
+    ErrorCode,
+  },
+};
 
 pub fn calculate_sub_total(
   amount: u64,
@@ -102,7 +105,7 @@ pub fn check_ed25519_data(data: &[u8], pubkey: &[u8], msg: &[u8], sig: &[u8]) ->
     public_key_instruction_index    != &u16::MAX.to_le_bytes()                  ||
     message_data_offset             != &exp_message_data_offset.to_le_bytes()   ||
     message_data_size               != &exp_message_data_size.to_le_bytes()     ||
-    message_instruction_index       != &u16::MAX.to_le_bytes()  
+    message_instruction_index       != &u16::MAX.to_le_bytes()
   {
     return Err(ErrorCode::SigVerificationFailed.into());
   }
