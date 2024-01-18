@@ -1,3 +1,3 @@
 export { StarshipService } from "./starship.service"
-export { Whitelist, GlobalProfile, Launchpad, LocalProfile, StarshipInstructionService } from "./starship_instruction.service"
+export {  GlobalProfile, Launchpad, UserProfile, StarshipInstructionService } from "./starship_instruction.service"
 

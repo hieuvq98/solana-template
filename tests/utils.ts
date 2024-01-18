@@ -1,7 +1,7 @@
-import { BorshService, HashService, MerkleNode, MerkleTree } from "@coin98/solana-support-library"
+import { BorshService, HashService, MerkleNode, MerkleTreeKeccak } from "@coin98/solana-support-library"
 import * as borsh from '@project-serum/borsh';
-import { PublicKey } from "@solana/web3.js"
-
+import { PublicKey,Keypair } from "@solana/web3.js"
+import * as ed from "@noble/ed25519"
 export interface WhitelistParams {
   index: number
   address: PublicKey
@@ -17,21 +17,21 @@ export function randomString(length: number): string {
     var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     var charactersLength = characters.length;
     for ( var i = 0; i < length; i++ ) {
-      result += characters.charAt(Math.floor(Math.random() * 
+      result += characters.charAt(Math.floor(Math.random() *
  charactersLength));
    }
    return result;
 }
 
 export class RedemptionTree{
-  private redemptionTree: MerkleTree
+  private redemptionTree: MerkleTreeKeccak
 
   constructor(redemptions: WhitelistParams[]) {
     const hashes = redemptions.map(item => {
       const bytes = BorshService.serialize(WHITELIST_LAYOUT, item, 40)
       return HashService.keckka256(bytes)
     })
-    this.redemptionTree = new MerkleTree(hashes)
+    this.redemptionTree = new MerkleTreeKeccak(hashes)
   }
 
   getRoot(): MerkleNode {
@@ -54,6 +54,7 @@ export class RedemptionTree{
   }
 
 }
+
 
 export async function wait(milliSeconds: number) {
   console.log("Waiting:", milliSeconds)

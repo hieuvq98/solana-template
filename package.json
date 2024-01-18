@@ -25,11 +25,12 @@
   "dependencies": {
     "@coin98/solana-support-library": "^0.10.0",
     "@project-serum/borsh": "^0.2.5",
-    "@solana/web3.js": "^1.50.0",
+    "@solana/web3.js": "^1.78.0",
     "bn.js": "^5.2.1",
     "crypto-js": "^4.1.1",
     "keccak": "^3.0.2",
-    "moment": "^2.29.3"
+    "moment": "^2.29.3",
+    "node-fetch": "^3.3.1"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.1",

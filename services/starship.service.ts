@@ -1,87 +1,114 @@
 import {
   Connection,
+  Ed25519Program,
   Keypair,
   PublicKey,
-  Transaction
+  Transaction,
+  TransactionInstruction
 } from '@solana/web3.js';
 import BN from 'bn.js';
 import moment from 'moment';
-import { HashService, BorshService, SolanaService } from '@coin98/solana-support-library';
-import { MerkleNode, MerkleTree, sendTransaction } from '@coin98/solana-support-library/core';
-import { VaultService } from '@coin98/vault-js';
+import { sendTransaction2, SolanaService,  } from '@coin98/solana-support-library';
+import { MerkleNode, MerkleTreeKeccak, sendTransaction } from '@coin98/solana-support-library/core';
 import {
   Launchpad,
   StarshipInstructionService,
-  Whitelist,
-  WHITELIST_LAYOUT
+  WhitelistParams,
 } from './starship_instruction.service';
 
 export class StarshipService {
   static async createLaunchpad(
     connection: Connection,
-    rootAccount: Keypair,
-    ownerAccount: Keypair,
+    payer: Keypair,
     launchpadName: string,
     tokenMint: PublicKey,
     priceN: BN,
     priceD: BN,
     minPerTx: BN,
     maxPerUser: BN,
-    limitSale: BN,
+    maxRegister: BN,
+    totalLimit: BN,
+    amountLimitInSol: BN,
     registerStartTimestamp: BN,
     registerEndTimestamp: BN,
     redeemStartTimestamp: BN,
     redeemEndTimestamp: BN,
-    privateSaleSignature: Buffer | null,
     protocolFee: BN,
     sharingFee: BN,
+    claimStartTimestamp: BN,
+    whitelistAuthority: PublicKey | null,
     starshipProgramId: PublicKey
   ): Promise<PublicKey> {
     const transaction = new Transaction();
-
     const [launchpadAddress]: [PublicKey, number] = StarshipInstructionService.findLaunchpadAddress(launchpadName, starshipProgramId);
-
-    if (!(await SolanaService.isAddressInUse(connection, launchpadAddress))) {
+    let isAddressUsed = await SolanaService.isAddressInUse(connection, launchpadAddress);
+    if (!isAddressUsed) {
       const launchpadDerivationPath = StarshipInstructionService.findLaunchpadDerivationPath(launchpadName);
-      const createLaunchpadInstruction = StarshipInstructionService.createLaunchpadInstruction(
-        rootAccount.publicKey,
+      const createLaunchpadInstruction = await StarshipInstructionService.createLaunchpadInstruction(
+        payer.publicKey,
         launchpadDerivationPath,
         tokenMint,
-        ownerAccount.publicKey,
+        payer.publicKey,
         protocolFee,
         sharingFee,
         starshipProgramId
       );
       transaction.add(createLaunchpadInstruction);
     }
-    const setLaunchpadInstruction = StarshipInstructionService.setLaunchpadInstruction(
-      ownerAccount.publicKey,
+
+    const setLaunchpadInstruction = await StarshipInstructionService.setLaunchpadInstruction(
+      payer.publicKey,
       launchpadAddress,
       priceN,
       priceD,
       minPerTx,
       maxPerUser,
-      limitSale,
+      maxRegister,
+      totalLimit,
+      amountLimitInSol,
       registerStartTimestamp,
       registerEndTimestamp,
       redeemStartTimestamp,
       redeemEndTimestamp,
-      privateSaleSignature,
+      claimStartTimestamp,
+      whitelistAuthority,
       starshipProgramId
     );
-    transaction.add(setLaunchpadInstruction);
 
-    const txSign = await sendTransaction(connection, transaction, [
-      rootAccount,
-      ownerAccount,
+    transaction.add(setLaunchpadInstruction);
+    const txSign = await sendTransaction2(connection, transaction, [
+      payer,
     ]);
-    console.info(`Created Launchpad ${launchpadAddress.toBase58()}`, '---', txSign, '\n');
+
+    console.info(`Created Launchpad ${launchpadAddress.toBase58()}`, '---', txSign[0], '\n');
     return launchpadAddress;
+  }
+
+  static async createWhitelistToken(
+    connection: Connection,
+    root: Keypair,
+    tokenMint: PublicKey,
+    starshipProgramId: PublicKey
+  ): Promise<PublicKey> {
+    const transaction: Transaction = new Transaction();
+    const [whitelistTokenAddress, ]: [PublicKey, number] = StarshipInstructionService.findWhitelistTokenMintAddress(tokenMint,starshipProgramId)
+    const createWhitelistTokenInstruction = StarshipInstructionService.createWhitelistTokenInstruction(
+      root.publicKey,
+      tokenMint,
+      starshipProgramId
+    );
+    transaction.add(createWhitelistTokenInstruction);
+     const txSign = await sendTransaction(connection, transaction, [
+      root,
+    ]);
+
+    console.info(`Created Whitelist Token ${whitelistTokenAddress.toBase58()}`, '---', txSign, '\n');
+    return whitelistTokenAddress;
   }
 
   static async updateProtocolFee(
     connection: Connection,
-    rootAccount: Keypair,
+    admin: Keypair,
     launchpadAddress: PublicKey,
     protocolFee: BN,
     starshipProgramId: PublicKey
@@ -89,7 +116,7 @@ export class StarshipService {
     const transaction: Transaction = new Transaction()
 
     const updateProtocolFeeInstruction = StarshipInstructionService.updateProtocolFeeInstruction(
-      rootAccount.publicKey,
+      admin.publicKey,
       launchpadAddress,
       protocolFee,
       starshipProgramId
@@ -98,7 +125,7 @@ export class StarshipService {
     transaction.add(updateProtocolFeeInstruction)
 
     const txSign = await sendTransaction(connection, transaction, [
-      rootAccount,
+      admin,
     ]);
     console.info(`Update protocol fee ${launchpadAddress.toBase58()} - ${protocolFee.toString()}`, '---', txSign, '\n');
 
@@ -185,12 +212,14 @@ export class StarshipService {
     connection: Connection,
     ownerAccount: Keypair,
     launchpadAddress: PublicKey,
+    whitelistTokenMint: PublicKey,
     tokenMint: PublicKey,
     priceN: BN,
     priceD: BN,
     minPerTx: BN,
     maxPerUser: BN,
-    limitSale: BN,
+    amountLimitInToken: BN,
+    sharingFee: BN,
     starshipProgramId: PublicKey
   ): Promise<PublicKey> {
     const transaction = new Transaction();
@@ -201,21 +230,25 @@ export class StarshipService {
         ownerAccount.publicKey,
         launchpadAddress,
         tokenMint,
+        whitelistTokenMint,
         starshipProgramId
       );
       transaction.add(createLaunchpadPurchaseInstruction);
     }
+
     const setLaunchpadPurchaseInstruction = StarshipInstructionService.setLaunchpadPurchaseInstruction(
       ownerAccount.publicKey,
       launchpadAddress,
-      lauchpadPurchaseAddress,
+      tokenMint,
       priceN,
       priceD,
       minPerTx,
       maxPerUser,
-      limitSale,
+      amountLimitInToken,
+      sharingFee,
       starshipProgramId
     );
+
     transaction.add(setLaunchpadPurchaseInstruction);
 
     const txSign = await sendTransaction(connection, transaction, [
@@ -234,13 +267,13 @@ export class StarshipService {
   ): Promise<PublicKey> {
     const transaction = new Transaction();
 
-    const [userProfileAddress]: [PublicKey, number] = StarshipInstructionService.findUserProfileAddress(
+    const [userProfileAddress]: [PublicKey, number] = await StarshipInstructionService.findUserProfileAddress(
       userAddress,
       launchpadAddress,
       starshipProgramId
     );
 
-    const instruction = StarshipInstructionService.createUserProfileInstruction(
+    const instruction = await StarshipInstructionService.createUserProfileInstruction(
       payerAccount.publicKey,
       launchpadAddress,
       userAddress,
@@ -262,6 +295,7 @@ export class StarshipService {
     userTokenAddress: PublicKey,
     launchpadTokenAddress: PublicKey,
     feeOwner: PublicKey,
+    appData: PublicKey,
     amount: number,
     starshipProgramId: PublicKey
   ): Promise<string> {
@@ -273,6 +307,7 @@ export class StarshipService {
       userTokenAddress,
       launchpadTokenAddress,
       feeOwner,
+      appData,
       amount,
       starshipProgramId
     );
@@ -295,6 +330,7 @@ export class StarshipService {
     launchpadToken0Address: PublicKey,
     launchpadToken1Address: PublicKey,
     feeOwnerToken0Address: PublicKey,
+    appData: PublicKey,
     amount: BN,
     starshipProgramId: PublicKey
   ): Promise<string> {
@@ -309,6 +345,7 @@ export class StarshipService {
       launchpadToken0Address,
       launchpadToken1Address,
       feeOwnerToken0Address,
+      appData,
       amount,
       starshipProgramId
     );
@@ -323,13 +360,26 @@ export class StarshipService {
 
   static async register(
     connection: Connection,
+    rootSigner: Keypair,
     payerAccount: Keypair,
-    index: number,
-    proofs: Buffer[],
     launchpadAddress: PublicKey,
+    whitelist_id: BN,
     starshipProgramId: PublicKey
   ): Promise<PublicKey> {
     const transaction = new Transaction();
+    const whitelist_params: WhitelistParams = {
+      launchpad: launchpadAddress,
+      address: payerAccount.publicKey,
+      whitelist_id: whitelist_id
+    }
+    const msg_hash = StarshipInstructionService.HashWhitelistMessage(whitelist_params);
+    const signature = await StarshipInstructionService.signMessage(rootSigner,msg_hash);
+    const validateSignatureInstruction: TransactionInstruction = Ed25519Program.createInstructionWithPublicKey({
+      publicKey: rootSigner.publicKey.toBuffer(),
+      message: msg_hash,
+      signature
+    })
+    transaction.add(validateSignatureInstruction)
 
     const [userProfileAddress]: [PublicKey, number] = StarshipInstructionService.findUserProfileAddress(
       payerAccount.publicKey,
@@ -348,16 +398,35 @@ export class StarshipService {
       );
       transaction.add(createUserProfileInstruction);
     }
+
+    const [whitelistIdProfileAddress,]: [PublicKey, number] = StarshipInstructionService.findWhitelistIdProfileAddress(
+      launchpadAddress,
+      whitelist_id,
+      starshipProgramId
+    );
+    if (
+      !(await SolanaService.isAddressInUse(connection, whitelistIdProfileAddress))
+    ) {
+      const createWhitelistIdProfileInstruction = StarshipInstructionService.createWhitelistIdProfileInstruction(
+        launchpadAddress,
+        whitelist_id,
+        payerAccount.publicKey,
+        starshipProgramId
+      );
+      transaction.add(createWhitelistIdProfileInstruction);
+    }
+
     const registerInstruction = StarshipInstructionService.registerInstruction(
       launchpadAddress,
       payerAccount.publicKey,
-      index,
-      proofs,
+      whitelist_id,
+      signature,
       starshipProgramId
     );
     transaction.add(registerInstruction);
 
     const txSign = await sendTransaction(connection, transaction, [
+      rootSigner,
       payerAccount,
     ]);
     console.info(
@@ -404,6 +473,7 @@ export class StarshipService {
     launchpadAddress: PublicKey,
     from: PublicKey,
     to: PublicKey,
+    tokenMint: PublicKey,
     amount: BN,
     starshipProgramId: PublicKey
   ): Promise<boolean> {
@@ -414,6 +484,7 @@ export class StarshipService {
       launchpadAddress,
       from,
       to,
+      tokenMint,
       amount,
       starshipProgramId
     );
@@ -431,19 +502,42 @@ export class StarshipService {
     return true;
   }
 
+  static async setAdmin(
+    connection: Connection,
+    rootAccount: Keypair,
+    adminAddress: PublicKey,
+    starshipProgramId: PublicKey
+  ) : Promise<PublicKey> {
+    const transaction = new Transaction();
+
+    const [adminProfileAddress,] = StarshipInstructionService.findAdminProfileAddress(adminAddress,starshipProgramId);
+
+    const setAdminInstruction = StarshipInstructionService.setAdminInstruction(rootAccount.publicKey,adminAddress,starshipProgramId);
+    transaction.add(setAdminInstruction);
+    const txSign = await sendTransaction(connection,transaction,[
+      rootAccount
+    ]);
+
+    console.info(
+      `Set new admin profile ${adminProfileAddress} for ${adminAddress}`,
+      '---',
+      txSign,
+      '\n'
+    );
+
+    return adminProfileAddress;
+
+  }
+
   static async getLaunchpadAccountInfo(
     connection: Connection,
     launchpadAddress: PublicKey
   ): Promise<Launchpad> {
     const accountInfo = await connection.getAccountInfo(launchpadAddress);
+    console.info("accountInfo",accountInfo);
     const data = StarshipInstructionService.decodeLaunchpadData(
-      accountInfo.data
+      accountInfo?.data
     );
-    const [signerAddress] = await VaultService.findVaultSignerAddress(
-      launchpadAddress,
-      accountInfo.owner
-    );
-    data.signer = signerAddress;
     return data;
   }
 
@@ -455,15 +549,17 @@ export class StarshipService {
       connection,
       launchpadAddress
     );
+    console.log('accountData',accountData)
     console.info('--- LAUNCHPAD ACCOUNT INFO ---');
     console.info(`Address:            ${launchpadAddress.toBase58()} -- ${launchpadAddress.toBuffer().toString('hex')}`);
-    console.info(`Signer:             ${accountData.signer.toBase58()} -- ${accountData.signer.toBuffer().toString('hex')}`);
+    // console.info(`Signer:             ${accountData?.signer?.toBase58()} -- ${accountData?.signer?.toBuffer().toString('hex')}`);
     console.info(`Nonce:              ${accountData.nonce}`);
     console.info(`Price in SOL:       ${accountData.priceN.toString()} / ${accountData.priceD.toString()} = ${accountData.priceN.div(accountData.priceD).toNumber()}`);
-    console.info(`Private Signature:  ${accountData.privateSaleRoot.toString('hex')} - ${accountData.privateSaleRoot.toJSON().data}`);
+    console.info(`Whitelist Authority:  ${accountData.whitelistAuthority?.toString('hex')} - ${accountData.whitelistAuthority?.toString('hex')}`);
     console.info(`Min per tx:         ${accountData.minPerTx.toNumber()}`);
     console.info(`Max per user:       ${accountData.maxPerUser.toNumber()}`);
-    console.info(`Limit sale:         ${accountData.limitSale.toNumber()}`);
+    console.info(`Total Limit:         ${accountData.totalLimit.toNumber()}`);
+    console.info(`Amount limit in sol:         ${accountData.amountLimitInSol.toNumber()}`);
     console.info(`Register time start:${moment(accountData.registerStartTimestamp.toNumber() * 1000).format('dddd, MMMM Do YYYY, hh:mm:ss')} -- ${accountData.registerStartTimestamp}`);
     console.info(`Register time end:  ${moment(accountData.registerEndTimestamp.toNumber() * 1000).format('dddd, MMMM Do YYYY, hh:mm:ss')} -- ${accountData.registerEndTimestamp}`);
     console.info(`Redeem time start:  ${moment(accountData.redeemStartTimestamp.toNumber() * 1000).format('dddd, MMMM Do YYYY, hh:mm:ss')} -- ${accountData.redeemStartTimestamp}`);
@@ -477,14 +573,7 @@ export class StarshipService {
     console.info('');
   }
 
-  static hashWhiteLists(whitelists: Whitelist[]): Buffer[] {
-    return whitelists.map((item) => {
-      const bytes = BorshService.serialize(WHITELIST_LAYOUT, item, 40);
-      return HashService.keckka256(bytes);
-    });
-  }
-
-  static getProof(tree: MerkleTree, index: number): MerkleNode[] {
+  static getProof(tree: MerkleTreeKeccak, index: number): MerkleNode[] {
     const nodes = tree.nodes();
     const proofs = [];
     let currentIndex = index;
@@ -499,6 +588,4 @@ export class StarshipService {
     return proofs;
   }
 }
-
-export { Whitelist };
 

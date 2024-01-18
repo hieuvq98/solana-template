@@ -3,21 +3,23 @@ import { SolanaConfigService } from "@coin98/solana-support-library/config"
 import { StarshipService } from "../services/starship.service"
 import BN from "bn.js";
 import { randomString, RedemptionTree, WhitelistParams } from "./utils"
-import { TokenProgramService } from "@coin98/solana-support-library";
-import { StarshipInstructionService } from "../services/starship_instruction.service";
+import { SystemProgramService, TokenProgramService } from "@coin98/solana-support-library";
+import SecretKey from "./default/id.json"
 
-const PROGRAM_ID: PublicKey = new PublicKey("ASMck7GjbLUkmsesypj4mA9s3ye311AqfAk7tFjHmaSh")
+
+const PROGRAM_ID: PublicKey = new PublicKey("D511gCoGjpKRLJtbsXCMMUuyJjeX3x2qPoJBqqgPNRVC")
 
 describe("Profile Test",() => {
   let connection = new Connection("http://localhost:8899", "confirmed")
 
   let defaultAccount: Keypair
   const priceInSolN = new BN(1000)
-  const priceInSolD = new BN(1)
+  const priceInSolD = new BN(10)
 
   const priceInTokenN = new BN(1000)
   const priceInTokenD = new BN(1)
-  
+
+  const adminAccount: Keypair = Keypair.generate()
   const testAccount1: Keypair = Keypair.generate()
   const testAccount2: Keypair = Keypair.generate()
   const testAccount3: Keypair = Keypair.generate()
@@ -42,19 +44,22 @@ describe("Profile Test",() => {
 
   const redemptiomTree = new RedemptionTree(whitelist)
 
-  const limitSale =  new BN("1000000000000")
+  const totalLimit =  new BN("1000000000000")
   const saleLimitPerTransaction = new BN(10000)
   const saleLimitPerUser = new BN(100000000000)
-  const currentTime =  Math.floor((new Date()).valueOf() / 1000)
-  const registerStartTimestamp = new BN(currentTime + 5)
-  const registerEndTimestamp = new BN(currentTime + 10)
-  const redeemStartTimestamp = new BN(currentTime + 11)
-  const redeemEndTimestamp = new BN(currentTime + 100)
+  const amountLimitInSol = new BN(1000000000000)
+  const currentTime =  Math.floor((new Date()).getTime() / 1000)
+  const registerStartTimestamp = new BN(currentTime + 100)
+  const registerEndTimestamp = new BN(currentTime + 105)
+  const redeemStartTimestamp = new BN(currentTime + 110)
+  const redeemEndTimestamp = new BN(currentTime + 120)
+  const claimStartTimestamp = new BN(currentTime + 130)
+  const maxRegister = new BN(200)
 
   let launchpadAddress: PublicKey
 
   before(async () => {
-    defaultAccount = await SolanaConfigService.getDefaultAccount()
+    defaultAccount = await Keypair.fromSecretKey(Uint8Array.from(SecretKey))
     await TokenProgramService.createTokenMint(
       connection,
       defaultAccount,
@@ -78,21 +83,23 @@ describe("Profile Test",() => {
     launchpadAddress = await StarshipService.createLaunchpad(
       connection,
       defaultAccount,
-      defaultAccount,
       launchpadName,
       token0Mint.publicKey,
       priceInSolN,
       priceInSolD,
       saleLimitPerTransaction,
       saleLimitPerUser,
-      limitSale,
+      maxRegister,
+      totalLimit,
+      amountLimitInSol,
       registerStartTimestamp,
       registerEndTimestamp,
       redeemStartTimestamp,
       redeemEndTimestamp,
-      redemptiomTree.getRoot().hash,
       new BN(2000),
       new BN(10),
+      claimStartTimestamp,
+      null,
       PROGRAM_ID
     )
 

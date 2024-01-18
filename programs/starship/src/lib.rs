@@ -6,22 +6,13 @@ pub mod event;
 pub mod state;
 pub mod util;
 
+
 use anchor_lang::prelude::*;
 use solana_program::{
-  keccak::{
-    hash,
-  },
-  ed25519_program::{
-    ID as ED25519_ID,
-  },
-  instruction::{
-    Instruction,
-  },
-  sysvar::{
-    instructions::{
-      load_instruction_at_checked,
-    },
-  },
+  keccak::hash,
+  ed25519_program::ID as ED25519_ID,
+  instruction::Instruction,
+  sysvar::instructions::load_instruction_at_checked,
 };
 use crate::{
   constant::{
@@ -29,13 +20,9 @@ use crate::{
     SIGNER_SEED_1,
   },
   context::*,
-  error::{
-    ErrorCode,
-  },
+  error::ErrorCode,
   event::*,
-  state::{
-    WhitelistParams,
-  },
+  state::WhitelistParams,
   util::{
     check_ed25519_data,
     calculate_out_total,
@@ -44,19 +31,15 @@ use crate::{
   }
 };
 use crate::external::{
-  anchor_spl_system::{
-    transfer_lamport,
-  },
-  anchor_spl_token::{
-    transfer_token,
-  },
+  anchor_spl_system::transfer_lamport,
+  anchor_spl_token::transfer_token,
 };
 
 #[cfg(feature = "mainnet")]
 declare_id!("SPadMQQeXyUGprwgt2SM8xZWVdKJ82UpWstWBLEDJwj");
 
 #[cfg(all(not(feature = "mainnet"), not(feature = "devnet")))]
-declare_id!("SPDxTSk2fjE4jbZ9KuBkjZQHzEV2fkAHXh6sJ7oWbaj");
+declare_id!("D511gCoGjpKRLJtbsXCMMUuyJjeX3x2qPoJBqqgPNRVC");
 
 #[program]
 mod coin98_starship {
@@ -75,7 +58,7 @@ mod coin98_starship {
 
     let launchpad = &mut ctx.accounts.launchpad;
 
-    launchpad.nonce = *ctx.bumps.get("launchpad").unwrap();
+    launchpad.nonce = ctx.bumps.launchpad;
     let (_, signer_nonce) = Pubkey::find_program_address(
       &[
         &SIGNER_SEED_1,
@@ -104,8 +87,7 @@ mod coin98_starship {
   ) -> Result<()> {
 
     let whitelist = &mut ctx.accounts.whitelist;
-    whitelist.nonce = *ctx.bumps.get("whitelist").unwrap();
-
+    whitelist.nonce = ctx.bumps.whitelist;
     emit!(CreateWhitelistTokenEvent {
       token_mint,
     });
@@ -260,7 +242,7 @@ mod coin98_starship {
     let launchpad = &ctx.accounts.launchpad;
     let launchpad_purchase = &mut ctx.accounts.launchpad_purchase;
 
-    launchpad_purchase.nonce = *ctx.bumps.get("launchpad_purchase").unwrap();
+    launchpad_purchase.nonce = ctx.bumps.launchpad_purchase;
     launchpad_purchase.launchpad = launchpad.key();
     launchpad_purchase.token_mint = token_mint;
 
@@ -563,7 +545,7 @@ mod coin98_starship {
 
     let profile = &mut ctx.accounts.user_profile;
 
-    profile.nonce = *ctx.bumps.get("user_profile").unwrap();
+    profile.nonce = ctx.bumps.user_profile;
     profile.launchpad = launchpad.key();
     profile.user = user;
 

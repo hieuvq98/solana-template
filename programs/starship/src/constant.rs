@@ -5,14 +5,14 @@ pub const ROOT_KEYS: &[&str] = &[
 
 #[cfg(all(not(feature = "mainnet"), not(feature = "devnet")))]
 pub const ROOT_KEYS: &[&str] = &[
-  "8ST8fTBGKaVPx4f1KG1zMMw4EJmSJBW2UgX1JR2pPoVa",
+  "1RbBCDnDt7NkrjndCnwjMuJ9vJbx81pKT1ts1x8SeQq",
 ];
 
 #[cfg(feature = "mainnet")]
 pub const FEE_OWNER: &str = "FSskoaLzbUjbrvkB1DLg6fvayd2vYQYSvNWmZbTtH5Zy";
 
 #[cfg(all(not(feature = "mainnet"), not(feature = "devnet")))]
-pub const FEE_OWNER: &str = "8ST8fTBGKaVPx4f1KG1zMMw4EJmSJBW2UgX1JR2pPoVa";
+pub const FEE_OWNER: &str = "1RbBCDnDt7NkrjndCnwjMuJ9vJbx81pKT1ts1x8SeQq";
 
 pub const LAUNCHPAD_SEED_1: &[u8] = &[8, 201, 24, 140, 93, 100, 30, 148];
 pub const LAUNCHPAD_PURCHASE_SEED_1: &[u8] = &[68, 70, 141, 93, 102, 104, 120, 59, 54];

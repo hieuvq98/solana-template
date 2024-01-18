@@ -5,20 +5,21 @@ import BN from "bn.js";
 import { randomString, RedemptionTree, WhitelistParams } from "./utils"
 import { SystemProgramService, TokenProgramService } from "@coin98/solana-support-library";
 import assert from "assert"
-import { Launchpad, StarshipInstructionService } from "../services/starship_instruction.service";
+import { Launchpad } from "../services/starship_instruction.service";
+import SecretKey from "./default/id.json"
 
-const PROGRAM_ID: PublicKey = new PublicKey("ASMck7GjbLUkmsesypj4mA9s3ye311AqfAk7tFjHmaSh")
+const PROGRAM_ID: PublicKey = new PublicKey("D511gCoGjpKRLJtbsXCMMUuyJjeX3x2qPoJBqqgPNRVC")
 
-describe("Launchpad Test",() => {
+describe("Launchpad Test", () => {
   let connection = new Connection("http://localhost:8899", "confirmed")
-
   let defaultAccount: Keypair
   const priceInSolN = new BN(1000)
   const priceInSolD = new BN(1)
 
   const priceInTokenN = new BN(1000)
   const priceInTokenD = new BN(1)
-  
+
+  const adminAccount: Keypair = Keypair.generate()
   const testAccount1: Keypair = Keypair.generate()
   const testAccount2: Keypair = Keypair.generate()
   const testAccount3: Keypair = Keypair.generate()
@@ -41,14 +42,17 @@ describe("Launchpad Test",() => {
     },
   ]
 
-  const redemptiomTree = new RedemptionTree(whitelist)
-
-  const limitSale =  new BN("1000000000000")
+  const totalLimit = new BN("1000000000000")
+  const amountLimitInSol = new BN(100000000)
+  const amountLimitInToken = new BN(100000000)
   const saleLimitPerTransaction = new BN(10000)
   const saleLimitPerUser = new BN(100000000000)
+  const maxRegister = new BN(200)
+
 
   before(async () => {
-    defaultAccount = await SolanaConfigService.getDefaultAccount()
+    defaultAccount = await Keypair.fromSecretKey(Uint8Array.from(SecretKey))
+    console.log("defaultAccount", defaultAccount.publicKey);
     await TokenProgramService.createTokenMint(
       connection,
       defaultAccount,
@@ -57,7 +61,6 @@ describe("Launchpad Test",() => {
       defaultAccount.publicKey,
       null
     )
-
     await TokenProgramService.createTokenMint(
       connection,
       defaultAccount,
@@ -66,20 +69,22 @@ describe("Launchpad Test",() => {
       defaultAccount.publicKey,
       null
     )
+    console.log(`Created mints ${token0Mint.publicKey} and ${token1Mint.publicKey}`)
+
   })
 
-  it("Create Launchpad!", async() => {
-    const currentTime =  Math.floor((new Date()).valueOf() / 1000)
+  it("Create Launchpad!", async () => {
+
+    const currentTime = Math.floor((new Date()).valueOf() / 1000)
     const registerStartTimestamp = new BN(currentTime + 2)
     const registerEndTimestamp = new BN(currentTime + 5)
     const redeemStartTimestamp = new BN(currentTime + 6)
     const redeemEndTimestamp = new BN(currentTime + 100)
+    const claimStartTimestamp = new BN(currentTime + 105)
 
-    const launchpadName = randomString(10)
-
+    const launchpadName = randomString(30)
     const launchpadAddress = await StarshipService.createLaunchpad(
       connection,
-      defaultAccount,
       defaultAccount,
       launchpadName,
       token0Mint.publicKey,
@@ -87,35 +92,41 @@ describe("Launchpad Test",() => {
       priceInSolD,
       saleLimitPerTransaction,
       saleLimitPerUser,
-      limitSale,
+      maxRegister,
+      totalLimit,
+      amountLimitInSol,
       registerStartTimestamp,
       registerEndTimestamp,
       redeemStartTimestamp,
       redeemEndTimestamp,
-      redemptiomTree.getRoot().hash,
-      new BN(2000),
+      new BN(1000),
       new BN(10),
+      claimStartTimestamp,
+      null,
       PROGRAM_ID
     )
-    const launchpadInfo:  Launchpad = await StarshipService.getLaunchpadAccountInfo(connection, launchpadAddress)
 
+
+    const launchpadInfo: Launchpad = await StarshipService.getLaunchpadAccountInfo(connection, launchpadAddress)
     await StarshipService.printLaunchpadAccountInfo(connection, launchpadAddress)
 
     assert(launchpadInfo.maxPerUser.toString() == saleLimitPerUser.toString(), "Starship: Invalid max per user")
     assert(launchpadInfo.minPerTx.toString() == saleLimitPerTransaction.toString(), "Starship: Invalid min per transaction")
   })
 
-  it("Create Launchpad Purchase!", async() => {
-    const currentTime =  Math.floor((new Date()).valueOf() / 1000)
+  it("Create Launchpad Purchase!", async () => {
+
+    const currentTime = Math.floor((new Date()).valueOf() / 1000)
     const registerStartTimestamp = new BN(currentTime + 2)
     const registerEndTimestamp = new BN(currentTime + 5)
     const redeemStartTimestamp = new BN(currentTime + 6)
     const redeemEndTimestamp = new BN(currentTime + 100)
+    const claimStartTimestamp = new BN(currentTime + 105)
     const launchpadName = randomString(10)
+    const sharingFee = new BN(1000)
 
     const launchpadAddress = await StarshipService.createLaunchpad(
       connection,
-      defaultAccount,
       defaultAccount,
       launchpadName,
       token0Mint.publicKey,
@@ -123,30 +134,36 @@ describe("Launchpad Test",() => {
       priceInSolD,
       saleLimitPerTransaction,
       saleLimitPerUser,
-      limitSale,
+      maxRegister,
+      totalLimit,
+      amountLimitInSol,
       registerStartTimestamp,
       registerEndTimestamp,
       redeemStartTimestamp,
       redeemEndTimestamp,
-      redemptiomTree.getRoot().hash,
       new BN(2000),
       new BN(10),
+      claimStartTimestamp,
+      null,
       PROGRAM_ID
     )
 
+    let whitelistTokenMint: PublicKey = await StarshipService.createWhitelistToken(connection, defaultAccount, token0Mint.publicKey, PROGRAM_ID);
     const launchpadPurchaseAddress: PublicKey = await StarshipService.createLaunchpadPurchase(
       connection,
       defaultAccount,
       launchpadAddress,
+      whitelistTokenMint,
       token0Mint.publicKey,
       priceInTokenN,
       priceInTokenD,
       saleLimitPerTransaction,
       saleLimitPerUser,
-      limitSale,
+      amountLimitInToken,
+      sharingFee,
       PROGRAM_ID
     )
-    const launchpadInfo:  Launchpad = await StarshipService.getLaunchpadAccountInfo(connection, launchpadAddress)
+    const launchpadInfo: Launchpad = await StarshipService.getLaunchpadAccountInfo(connection, launchpadAddress)
 
 
     assert(launchpadInfo.maxPerUser.toString() == saleLimitPerUser.toString(), "Starship: Invalid max per user")
@@ -154,16 +171,18 @@ describe("Launchpad Test",() => {
   })
 
   it("Transfer ownership", async () => {
+
     const currentTime =  Math.floor((new Date()).valueOf() / 1000)
     const registerStartTimestamp = new BN(currentTime + 2)
     const registerEndTimestamp = new BN(currentTime + 5)
     const redeemStartTimestamp = new BN(currentTime + 6)
     const redeemEndTimestamp = new BN(currentTime + 100)
     const launchpadName = randomString(10)
+    const claimStartTimestamp = new BN(currentTime + 105)
+
 
     const launchpadAddress = await StarshipService.createLaunchpad(
       connection,
-      defaultAccount,
       defaultAccount,
       launchpadName,
       token0Mint.publicKey,
@@ -171,14 +190,17 @@ describe("Launchpad Test",() => {
       priceInSolD,
       saleLimitPerTransaction,
       saleLimitPerUser,
-      limitSale,
+      maxRegister,
+      totalLimit,
+      amountLimitInSol,
       registerStartTimestamp,
       registerEndTimestamp,
       redeemStartTimestamp,
       redeemEndTimestamp,
-      redemptiomTree.getRoot().hash,
       new BN(2000),
       new BN(10),
+      claimStartTimestamp,
+      null,
       PROGRAM_ID
     )
 

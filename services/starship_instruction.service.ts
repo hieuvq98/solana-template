@@ -1,33 +1,31 @@
+import { Keypair } from '@solana/web3.js';
 import { BorshCoder, Idl } from "@project-serum/anchor"
 import * as borsh from '@project-serum/borsh';
+import * as ed from "@noble/ed25519"
 import {
   AccountMeta,
   PublicKey,
   SystemProgram,
+  SYSVAR_INSTRUCTIONS_PUBKEY,
   TransactionInstruction,
 } from '@solana/web3.js';
 import BN from 'bn.js';
 import { HashService, TOKEN_PROGRAM_ID } from '@coin98/solana-support-library';
-import StarshipIdl from "../target/idl/coin98_starship.json"
+import { IdlParserService } from "@coin98/solana-support-library";
+import StarshipIdl from "../target/idl/coin98_starship.json";
 
 const coder = new BorshCoder(StarshipIdl as Idl)
-
-export interface Whitelist {
-  index: number;
-  address: PublicKey;
+const parser = new IdlParserService(StarshipIdl as Idl) as any;
+export interface WhitelistParams {
+  launchpad: PublicKey,
+  address: PublicKey,
+  whitelist_id: BN
 }
 
-interface CreateLaunchpadRequest {
-  launchpadPath: Buffer;
-  tokenMint: PublicKey
-  owner: PublicKey
-  protocolFee: BN
-  sharingFee: BN
-}
-
-export const WHITELIST_LAYOUT = borsh.struct<Whitelist>([
-  borsh.u32('index'),
+export const WHITELIST_LAYOUT = borsh.struct<WhitelistParams>([
+  borsh.publicKey('launchpad'),
   borsh.publicKey('address'),
+  borsh.u64("whitelist_id")
 ]);
 
 interface CreateUserProfileRequest {
@@ -41,25 +39,6 @@ interface RedeemBySolRequest {
 interface RedeemByTokenRequest {
   amount: BN;
 }
-
-interface RegisterRequest {
-  index: number;
-  proofs: Buffer[];
-}
-
-interface SetLaunchpadRequest {
-  priceN: BN;
-  priceD: BN;
-  minPerTx: BN;
-  maxPerUser: BN;
-  limitSale: BN;
-  registerStartTimestamp: BN;
-  registerEndTimestamp: BN;
-  redeemStartTimestamp: BN;
-  redeemEndTimestamp: BN;
-  privateSaleRoot: Buffer | null;
-}
-
 interface UpdateProtocolFeeRequest {
   protocolFee: BN
 }
@@ -77,11 +56,12 @@ interface CreateLaunchpadPurchaseRequest {
 }
 
 interface SetLaunchpadPurchaseRequest {
-  limitSale: BN
   priceN: BN
   priceD: BN
   minPerTx: BN
   maxPerUser: BN
+  amountLimitInToken: BN
+  sharingFee: BN
 }
 
 interface WithdrawRequest {
@@ -92,9 +72,7 @@ export interface GlobalProfile {
   user: PublicKey;
   isBlacklisted: boolean;
 }
-
 export interface Launchpad {
-  signer?: PublicKey;
   nonce: number;
   signerNonce: number;
   isActive: boolean;
@@ -102,17 +80,26 @@ export interface Launchpad {
   priceD: BN;
   minPerTx: BN;
   maxPerUser: BN;
-  limitSale: BN;
+  totalLimit: BN,
+  totalSold: BN,
+  totalClaimed: BN,
+  amountSoldInSol: BN,
+  amountLimitInSol: BN,
   registerStartTimestamp: BN;
   registerEndTimestamp: BN;
   redeemStartTimestamp: BN;
   redeemEndTimestamp: BN;
-  privateSaleRoot: Buffer;
+  claimStartTimestamp: BN;
+  whitelistAuthority: Buffer
   tokenMint: Buffer;
   owner: Buffer;
   newOwner: Buffer;
   protocolFee: BN
-  sharingFee: BN
+  sharingFee: BN,
+}
+
+export interface TimestampAccount {
+  cur: BN
 }
 
 export interface UserProfile {
@@ -125,7 +112,7 @@ export interface UserProfile {
 export class StarshipInstructionService {
 
   static createLaunchpadInstruction(
-    payerAddress: PublicKey,
+    payerAccount: PublicKey,
     launchpadPath: Buffer,
     tokenMint: PublicKey,
     owner: PublicKey,
@@ -133,26 +120,77 @@ export class StarshipInstructionService {
     sharingFee: BN,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
-    const [launchpadAddress, ]: [PublicKey, number] = StarshipInstructionService.findLaunchpadAddress(launchpadPath, starshipProgramId)
-    const request: CreateLaunchpadRequest = {
+    const [launchpadAccount,]: [PublicKey, number] = StarshipInstructionService.findLaunchpadAddress(launchpadPath, starshipProgramId)
+    const args = {
       launchpadPath,
       tokenMint,
       owner,
       protocolFee,
       sharingFee
     };
-    const data = coder.instruction.encode("createLaunchpad", request)
-    const keys: AccountMeta[] = [
-      <AccountMeta>{ pubkey: payerAddress, isSigner: true, isWritable: false },
-      <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false, },
-    ];
+    const accounts = {
+      root: payerAccount,
+      launchpad: launchpadAccount,
+      systemProgram: SystemProgram.programId
+    }
+    return parser.createLaunchpad(
+      args,
+      accounts,
+      starshipProgramId
+    );
+  }
 
-    return new TransactionInstruction({
-      keys,
-      data,
-      programId: starshipProgramId,
-    });
+  static createWhitelistTokenInstruction(
+    rootAddress: PublicKey,
+    tokenMint: PublicKey,
+    starshipProgramId: PublicKey
+  ): TransactionInstruction {
+    const [whitelistTokenAddress,]: [PublicKey, number] = StarshipInstructionService.findWhitelistTokenMintAddress(tokenMint, starshipProgramId)
+
+    const args = {
+      tokenMint
+    };
+
+    const accounts = {
+      root: rootAddress,
+      whitelist: whitelistTokenAddress,
+      systemProgram: SystemProgram.programId
+    }
+    return parser.createWhitelistToken(
+      args,
+      accounts,
+      starshipProgramId
+    )
+  }
+
+  static createWhitelistIdProfileInstruction(
+    launchpadAddress: PublicKey,
+    whitelist_id: BN,
+    payerAccount: PublicKey,
+    starshipProgramId: PublicKey
+  ): TransactionInstruction {
+    const [whitelistIdProfileAddress]: [PublicKey, number] = StarshipInstructionService.findWhitelistIdProfileAddress(
+      launchpadAddress,
+      whitelist_id,
+      starshipProgramId
+    );
+
+    const args = {
+      whitelistId: whitelist_id
+    };
+
+    const accounts = {
+      payer: payerAccount,
+      launchpad: launchpadAddress,
+      whitelistIdProfile: whitelistIdProfileAddress,
+      systemProgram: SystemProgram.programId
+    }
+
+    return parser.createWhitelistIdProfile(
+      args,
+      accounts,
+      starshipProgramId
+    )
   }
 
   static setLaunchpadInstruction(
@@ -162,37 +200,38 @@ export class StarshipInstructionService {
     priceD: BN,
     minPerTx: BN,
     maxPerUser: BN,
-    limitSale: BN,
+    maxRegister: BN,
+    totalLimit: BN,
+    amountLimitInSol: BN,
     registerStartTimestamp: BN,
     registerEndTimestamp: BN,
     redeemStartTimestamp: BN,
     redeemEndTimestamp: BN,
-    privateSaleRoot: Buffer | null,
+    claimStartTimestamp: BN,
+    whitelistAuthority: PublicKey | null,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
-    const request: SetLaunchpadRequest = {
+
+    const args = {
       priceN,
       priceD,
       minPerTx,
       maxPerUser,
-      limitSale,
+      maxRegister,
+      totalLimit,
+      amountLimitInSol,
       registerStartTimestamp,
       registerEndTimestamp,
       redeemStartTimestamp,
       redeemEndTimestamp,
-      privateSaleRoot
+      claimStartTimestamp,
+      whitelistAuthority
     };
-
-    const data = coder.instruction.encode("setLaunchpad", request)
-    const keys: AccountMeta[] = [
-      <AccountMeta>{ pubkey: ownerAddress, isSigner: true, isWritable: false },
-      <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: true, },
-    ];
-    return new TransactionInstruction({
-      keys,
-      data,
-      programId: starshipProgramId,
-    });
+    const accounts = {
+      owner: ownerAddress,
+      launchpad: launchpadAddress
+    }
+    return parser.setLaunchpad(args, accounts, starshipProgramId);
   }
 
   static updateProtocolFeeInstruction(
@@ -285,57 +324,52 @@ export class StarshipInstructionService {
     ownerAddress: PublicKey,
     launchpadAddress: PublicKey,
     tokenMint: PublicKey,
+    whitelistTokenMintAddress: PublicKey,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
-    const [launchpadPurchaseAddress,]: [PublicKey, number] = StarshipInstructionService.findLaunchpadPurchaseAddress(launchpadAddress, tokenMint, starshipProgramId)
+    const [launchpadPurchaseAddress,]: [PublicKey, number] = StarshipInstructionService.findLaunchpadPurchaseAddress(launchpadAddress, tokenMint, starshipProgramId);
     const request: CreateLaunchpadPurchaseRequest = {
       tokenMint,
     };
-    const data = coder.instruction.encode("createLaunchpadPurchase", request)
-    const keys: AccountMeta[] = [
-      <AccountMeta>{ pubkey: ownerAddress, isSigner: true, isWritable: true },
-      <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: false, },
-      <AccountMeta>{ pubkey: launchpadPurchaseAddress, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false, },
-    ];
+    const accounts = {
+      owner: ownerAddress,
+      launchpad: launchpadAddress,
+      whitelistTokenMint: whitelistTokenMintAddress,
+      launchpadPurchase: launchpadPurchaseAddress,
+      systemProgram: SystemProgram.programId
+    }
+    return parser.createLaunchpadPurchase(request, accounts, starshipProgramId)
 
-    return new TransactionInstruction({
-      keys,
-      data,
-      programId: starshipProgramId,
-    });
   }
 
   static setLaunchpadPurchaseInstruction(
     ownerAddress: PublicKey,
     launchpadAddress: PublicKey,
-    launchpadPurchaseAddress: PublicKey,
-    limitSale: BN,
+    tokenMint: PublicKey,
     priceN: BN,
     priceD: BN,
     minPerTx: BN,
     maxPerUser: BN,
+    amountLimitInToken: BN,
+    sharingFee: BN,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
+    const [launchpadPurchaseAddress,]: [PublicKey, number] = StarshipInstructionService.findLaunchpadPurchaseAddress(launchpadAddress, tokenMint, starshipProgramId);
+
     const request: SetLaunchpadPurchaseRequest = {
       priceN,
       priceD,
       minPerTx,
       maxPerUser,
-      limitSale,
+      amountLimitInToken,
+      sharingFee
     };
-
-    const data = coder.instruction.encode("setLaunchpadPurchase", request)
-    const keys: AccountMeta[] = [
-      <AccountMeta>{ pubkey: ownerAddress, isSigner: true, isWritable: false },
-      <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: false, },
-      <AccountMeta>{ pubkey: launchpadPurchaseAddress, isSigner: false, isWritable: true, },
-    ];
-    return new TransactionInstruction({
-      keys,
-      data,
-      programId: starshipProgramId,
-    });
+    const accounts = {
+      owner: ownerAddress,
+      launchpad: launchpadAddress,
+      launchpadPurchase: launchpadPurchaseAddress
+    }
+    return parser.setLaunchpadPurchase(request, accounts, starshipProgramId);
   }
 
   static createUserProfileInstruction(
@@ -344,27 +378,27 @@ export class StarshipInstructionService {
     userAddress: PublicKey,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
-    const [userProfileAddress, ]: [PublicKey, number] = StarshipInstructionService.findUserProfileAddress(userAddress, launchpadAddress, starshipProgramId)
+    const [userProfileAddress,]: [PublicKey, number] = StarshipInstructionService.findUserProfileAddress(userAddress, launchpadAddress, starshipProgramId)
     const request: CreateUserProfileRequest = {
       user: userAddress,
     };
-    const data = coder.instruction.encode("createUserProfile", request)
-    const keys: AccountMeta[] = [
-      <AccountMeta>{ pubkey: payerAddress, isSigner: true, isWritable: false },
-      <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: false, },
-      <AccountMeta>{ pubkey: userProfileAddress, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false, },
-    ];
 
-    return new TransactionInstruction({
-      keys,
-      data,
-      programId: starshipProgramId,
-    });
+    const accounts = {
+      payer: payerAddress,
+      launchpad: launchpadAddress,
+      userProfile: userProfileAddress,
+      systemProgram: SystemProgram.programId
+    }
+
+    return parser.createUserProfile(request, accounts, starshipProgramId);
   }
 
   static decodeLaunchpadData(data: Buffer): Launchpad {
     return coder.accounts.decode("Launchpad", data)
+  }
+
+  static decodeTimestampData(data: Buffer): TimestampAccount {
+    return coder.accounts.decode("TimestampAccount", data)
   }
 
   static redeemBySolInstruction(
@@ -373,35 +407,31 @@ export class StarshipInstructionService {
     userTokenAddress: PublicKey,
     launchpadTokenAddress: PublicKey,
     feeOwnerAddress: PublicKey,
+    appDataAddress: PublicKey,
     amount: number,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
-    const [userProfileAddress, ]: [PublicKey, number] = StarshipInstructionService.findUserProfileAddress(userAddress, launchpadAddress, starshipProgramId)
+    const [userProfileAddress,]: [PublicKey, number] = StarshipInstructionService.findUserProfileAddress(userAddress, launchpadAddress, starshipProgramId)
 
-    const [launchpadSignerAddress, ]: [PublicKey, number] = StarshipInstructionService.findLaunchpadSignerAddress(launchpadAddress, starshipProgramId)
+    const [launchpadSignerAddress,]: [PublicKey, number] = StarshipInstructionService.findLaunchpadSignerAddress(launchpadAddress, starshipProgramId)
 
     const request: RedeemBySolRequest = {
       amount: new BN(amount),
     };
 
-    const data = coder.instruction.encode("redeemBySol", request)
-    const keys: AccountMeta[] = [
-      <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: false, },
-      <AccountMeta>{ pubkey: launchpadSignerAddress, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: userAddress, isSigner: true, isWritable: true },
-      <AccountMeta>{ pubkey: userProfileAddress, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: userTokenAddress, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: launchpadTokenAddress, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: feeOwnerAddress, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false, },
-      <AccountMeta>{ pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false, },
-    ];
-
-    return new TransactionInstruction({
-      keys,
-      data,
-      programId: starshipProgramId,
-    });
+    const accounts = {
+      launchpad: launchpadAddress,
+      launchpadSigner: launchpadSignerAddress,
+      user: userAddress,
+      userProfile: userProfileAddress,
+      userTokenAccount: userTokenAddress,
+      launchpadTokenAccount: launchpadTokenAddress,
+      feeOwner: feeOwnerAddress,
+      appData: appDataAddress,
+      systemProgram: SystemProgram.programId,
+      tokenProgram: TOKEN_PROGRAM_ID
+    }
+    return parser.redeemBySol(request, accounts, starshipProgramId)
   }
 
   static redeemByTokenInstruction(
@@ -413,63 +443,63 @@ export class StarshipInstructionService {
     launchpadToken0Address: PublicKey,
     launchpadToken1Address: PublicKey,
     feeOwnerToken0Address: PublicKey,
+    appDataAddress: PublicKey,
     amount: BN,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
-    const [userProfileAddress, ]: [PublicKey, number] = StarshipInstructionService.findUserProfileAddress(userAddress, launchpadAddress, starshipProgramId)
+    const [userProfileAddress,]: [PublicKey, number] = StarshipInstructionService.findUserProfileAddress(userAddress, launchpadAddress, starshipProgramId)
 
-    const [launchpadSignerAddress, ]: [PublicKey, number] = StarshipInstructionService.findLaunchpadSignerAddress(launchpadAddress, starshipProgramId)
+    const [launchpadSignerAddress,]: [PublicKey, number] = StarshipInstructionService.findLaunchpadSignerAddress(launchpadAddress, starshipProgramId)
 
     const request: RedeemByTokenRequest = {
       amount,
     };
-    const data = coder.instruction.encode("redeemByToken", request)
-    const keys: AccountMeta[] = [
-      <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: false, },
-      <AccountMeta>{ pubkey: launchpadPurchaseAddress, isSigner: false, isWritable: false, },
-      <AccountMeta>{ pubkey: launchpadSignerAddress, isSigner: false, isWritable: false, },
-      <AccountMeta>{ pubkey: userAddress, isSigner: true, isWritable: true },
-      <AccountMeta>{ pubkey: userProfileAddress, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: userToken0Address, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: userToken1Address, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: launchpadToken0Address, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: launchpadToken1Address, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: feeOwnerToken0Address, isSigner: false, isWritable: true, },
-      <AccountMeta>{ pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false, },
-    ];
 
-    return new TransactionInstruction({
-      keys,
-      data,
-      programId: starshipProgramId,
-    });
+    const accounts = {
+      launchpad: launchpadAddress,
+      launchpadPurchase: launchpadPurchaseAddress,
+      launchpadSigner: launchpadSignerAddress,
+      user: userAddress,
+      userProfile: userProfileAddress,
+      userToken0Account: userToken0Address,
+      userToken1Account: userToken1Address,
+      launchpadToken0Account: launchpadToken0Address,
+      launchpadToken1Account: launchpadToken1Address,
+      feeOwnerToken0Account: feeOwnerToken0Address,
+      appData: appDataAddress,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    }
+
+    return parser.redeemByToken(request, accounts, starshipProgramId);
   }
 
   static registerInstruction(
     launchpadAddress: PublicKey,
     userAddress: PublicKey,
-    userIndex: number,
-    userProofs: Buffer[],
+    whitelist_id: BN,
+    whitelistSignature: Buffer,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
-    const [userProfileAddress, ]: [PublicKey, number] = StarshipInstructionService.findUserProfileAddress(userAddress, launchpadAddress, starshipProgramId)
+    const [userProfileAddress,]: [PublicKey, number] = StarshipInstructionService.findUserProfileAddress(userAddress, launchpadAddress, starshipProgramId)
 
-    const request: RegisterRequest = {
-      index: userIndex,
-      proofs: userProofs,
-    };
-    const data = coder.instruction.encode("register", request)
-    const keys: AccountMeta[] = [
-      <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: false, },
-      <AccountMeta>{ pubkey: userAddress, isSigner: true, isWritable: false },
-      <AccountMeta>{ pubkey: userProfileAddress, isSigner: false, isWritable: true, },
-    ];
+    const [whitelistIdAddress,]: [PublicKey, number] = StarshipInstructionService.findWhitelistIdProfileAddress(launchpadAddress, whitelist_id, starshipProgramId)
+    const args = {
+      whitelistSignature: whitelistSignature
+    }
 
-    return new TransactionInstruction({
-      keys,
-      data,
-      programId: starshipProgramId,
-    });
+    const accounts = {
+      launchpad: launchpadAddress,
+      user: userAddress,
+      userProfile: userProfileAddress,
+      whitelistIdProfile: whitelistIdAddress,
+      sysvarProgram: SYSVAR_INSTRUCTIONS_PUBKEY
+    }
+
+    return parser.register(
+      args,
+      accounts,
+      starshipProgramId
+    )
   }
 
   static withdrawSolInstruction(
@@ -478,23 +508,18 @@ export class StarshipInstructionService {
     amount: BN,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
-    const [launchpadSignerAddress, ]: [PublicKey, number] = StarshipInstructionService.findLaunchpadSignerAddress(launchpadAddress, starshipProgramId)
+    const [launchpadSignerAddress,]: [PublicKey, number] = StarshipInstructionService.findLaunchpadSignerAddress(launchpadAddress, starshipProgramId)
     const request: WithdrawRequest = {
       amount
     };
-    const data = coder.instruction.encode("withdrawSol", request)
-    const keys: AccountMeta[] = [
-      <AccountMeta>{ pubkey: ownerAddress, isSigner: true, isWritable: false },
-      <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: false },
-      <AccountMeta>{ pubkey: launchpadSignerAddress, isSigner: false, isWritable: true },
-      <AccountMeta>{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    ];
+    const accounts = {
+      owner: ownerAddress,
+      launchpad: launchpadAddress,
+      launchpadSigner: launchpadSignerAddress,
+      systemProgram: SystemProgram.programId
+    }
 
-    return new TransactionInstruction({
-      keys,
-      data,
-      programId: starshipProgramId,
-    });
+    return parser.withdrawSol(request, accounts, starshipProgramId)
   }
 
   static withdrawTokenInstruction(
@@ -502,34 +527,32 @@ export class StarshipInstructionService {
     launchpadAddress: PublicKey,
     from: PublicKey,
     to: PublicKey,
+    tokenMint: PublicKey,
     amount: BN,
     starshipProgramId: PublicKey
   ): TransactionInstruction {
-    const [launchpadSignerAddress, ]: [PublicKey, number] = StarshipInstructionService.findLaunchpadSignerAddress(launchpadAddress, starshipProgramId)
-    const request: WithdrawRequest = {
+    const [launchpadSignerAddress,]: [PublicKey, number] = StarshipInstructionService.findLaunchpadSignerAddress(launchpadAddress, starshipProgramId)
+    const request = {
+      tokenMint,
       amount
     };
-    const data = coder.instruction.encode("withdrawToken", request)
-    const keys: AccountMeta[] = [
-      <AccountMeta>{ pubkey: ownerAddress, isSigner: true, isWritable: false },
-      <AccountMeta>{ pubkey: launchpadAddress, isSigner: false, isWritable: false },
-      <AccountMeta>{ pubkey: launchpadSignerAddress, isSigner: false, isWritable: true },
-      <AccountMeta>{ pubkey: from, isSigner: false, isWritable: true },
-      <AccountMeta>{ pubkey: to, isSigner: false, isWritable: true },
-      <AccountMeta>{ pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-    ];
 
-    return new TransactionInstruction({
-      keys,
-      data,
-      programId: starshipProgramId,
-    });
+    const accounts = {
+      owner: ownerAddress,
+      launchpad: launchpadAddress,
+      launchpadSigner: launchpadSignerAddress,
+      from: from,
+      to: to,
+      tokenProgram: TOKEN_PROGRAM_ID
+    }
+
+    return parser.withdrawToken(request, accounts, starshipProgramId);
   }
 
   static findLaunchpadDerivationPath(identifier: string): Buffer {
     return HashService.sha256(identifier);
   }
-  
+
   static findLaunchpadAddress(
     identifier: string | Buffer,
     starshipProgramId: PublicKey
@@ -573,4 +596,79 @@ export class StarshipInstructionService {
     );
   }
 
+  static findWhitelistTokenMintAddress(
+    tokenMint: PublicKey,
+    starshipProgramId: PublicKey
+  ): [PublicKey, number] {
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from([237, 187, 186, 94, 223, 196, 119, 229]), tokenMint.toBuffer()],
+      starshipProgramId
+    )
+  }
+
+  static findWhitelistIdProfileAddress(
+    launchpadAddress: PublicKey,
+    whitelist_id: BN,
+    starshipProgramId: PublicKey
+  ): [PublicKey, number] {
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from([212, 134, 165, 23, 111, 165, 116, 210]), launchpadAddress.toBuffer(), whitelist_id.toBuffer()],
+      starshipProgramId
+    )
+  }
+
+  static HashWhitelistMessage(
+    message: WhitelistParams
+  ): Buffer {
+    const buffer = Buffer.alloc(1000)
+    const span = WHITELIST_LAYOUT.encode(message, buffer)
+    const serialize = buffer.subarray(0, span)
+
+    return HashService.keckka256(serialize)
+  }
+
+  static signMessage = async (signer: Keypair, message: Buffer): Promise<Buffer> => {
+    const signature = await ed.sign(message, signer.secretKey.slice(0, 32))
+
+    return Buffer.from(signature)
+  }
+
+  static findAdminProfileAddress(
+    adminAddress: PublicKey,
+    starshipProgramId: PublicKey
+  ): [PublicKey,number] {
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from([188, 48, 130, 220, 238, 157, 235, 190]), adminAddress.toBuffer()],
+      starshipProgramId
+    )
+  }
+
+  static findAppDataAddress(
+    starshipProgramId: PublicKey
+  ): [PublicKey,number] {
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from([100, 255, 255, 110, 22, 96, 128, 193])],
+      starshipProgramId
+    )
+  }
+
+  static setAdminInstruction(
+    rootAddress: PublicKey,
+    adminAddress: PublicKey,
+    starshipProgramId: PublicKey
+  ): TransactionInstruction {
+    const [adminProfileAddress,]: [PublicKey, number] = StarshipInstructionService.findAdminProfileAddress(adminAddress, starshipProgramId)
+    const request = {
+      admin: adminAddress,
+    };
+
+    const accounts = {
+      root: rootAddress,
+      adminProfile: adminProfileAddress,
+      systemProgram: SystemProgram.programId
+    }
+
+    return parser.setAdmin(
+      request, accounts, starshipProgramId);
+  }
 }
