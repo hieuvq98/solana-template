@@ -1,5 +1,5 @@
-pub mod sale_sequenced;
-pub mod sale_standard;
+pub mod launchpad;
+pub mod admin;
 
-pub use sale_sequenced::*;
-pub use sale_standard::*;
+pub use launchpad::*;
+pub use admin::*;

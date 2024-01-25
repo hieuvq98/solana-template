@@ -1,9 +1,9 @@
-use anchor_lang::accounts::{program, signer};
 use anchor_lang::prelude::*;
 
 use crate::constant::{SALE_STANDARD_SEED, SIGNER_SEED};
-use crate::state::sale_standard::SaleStandard;
+use crate::state::launchpad::SaleStandard;
 use crate::error::ErrorCode;
+use crate::events::CreateLaunchpadEvent;
 
 #[derive(Accounts)]
 #[instruction(launchpad_path: Vec<u8>)]
@@ -39,7 +39,7 @@ impl <'info> CreateSaleStandard<'info> {
         require!(protocol_fee <= 2000, ErrorCode::MaxFeeReached);
         let launchpad = &mut self.launchpad;
 
-        launchpad.nonce = bump;
+        launchpad.info.nonce = bump;
         let(_, signer_nonce) = Pubkey::find_program_address(
             &[
                 &SIGNER_SEED,
@@ -48,10 +48,15 @@ impl <'info> CreateSaleStandard<'info> {
             program_id,
         );
 
-        launchpad.signer_nonce = signer_nonce;
-        launchpad.owner = owner;
-        launchpad.token_mint = token_mint;
-        launchpad.protocol_fee = protocol_fee;
+        launchpad.info.signer_nonce = signer_nonce;
+        launchpad.info.owner = owner;
+        launchpad.info.token_mint = token_mint;
+        launchpad.info.protocol_fee = protocol_fee;
+
+        emit!(CreateLaunchpadEvent {
+            launchpad_path,
+            token_mint
+        });
 
         Ok(())
     }
