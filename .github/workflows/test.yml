@@ -1,0 +1,30 @@
+name: Test
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Checkout sources
+          uses: actions/checkout@v2
+
+        - name: Install avm
+          run: cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+
+        - name: Install anchor
+          run: |
+            avm install latest
+            avm use latest
+
+        - name: Compile
+          run: anchor build -- --features mainnet
+
+        - name: Test
+          run: cargo test-bpf -- --nocapture

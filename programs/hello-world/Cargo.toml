@@ -1,12 +1,12 @@
 [package]
-name = "coin98-starship"
+name = "hello-world"
 version = "1.0.0"
-authors = ["Coin98 Labs"]
+authors = ["hieuvq98"]
 license = "Apache-2.0"
 edition = "2021"
 
 [lib]
-name = "coin98_starship"
+name = "hello_world"
 crate-type = ["cdylib", "lib"]
 
 [features]
