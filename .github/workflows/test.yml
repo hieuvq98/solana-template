@@ -24,7 +24,7 @@ jobs:
             avm use latest
 
         - name: Compile
-          run: anchor build -- --features mainnet
+          run: anchor build
 
         - name: Test
           run: cargo test-bpf -- --nocapture

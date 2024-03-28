@@ -1,5 +1,5 @@
 {
-  "name": "@coin98/starship-js",
+  "name": "hello_world",
   "version": "1.2.1",
   "description": "",
   "main": "services/index.js",
@@ -23,7 +23,6 @@
     "test:ts": "ts-mocha -p ./tsconfig.mocha.json ./tests/*.spec.ts --timeout 60000"
   },
   "dependencies": {
-    "@coin98/solana-support-library": "^0.10.0",
     "@project-serum/borsh": "^0.2.5",
     "@solana/web3.js": "^1.78.0",
     "bn.js": "^5.2.1",
