@@ -15,16 +15,16 @@ jobs:
         - name: Checkout sources
           uses: actions/checkout@v2
 
+        - name: Install Rust
+          uses: ATiltedTree/setup-rust@v1
+          with:
+            rust-version: 1.75.0
+
         - name: Install Solana CLI
           run: sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
 
-        - name: Install avm
-          run: cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
-
         - name: Install anchor
-          run: |
-            avm install latest
-            avm use latest
+          run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.29.0 anchor-cli --locked
 
         - name: Compile
           run: anchor build
