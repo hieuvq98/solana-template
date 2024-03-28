@@ -29,6 +29,9 @@ jobs:
         - name: Log cargo
           run: cargo --list
 
+        - name: Install bpfel-unknown-unknown
+          run: rustup target add bpfel-unknown-unknown
+
         - name: Compile
           run: anchor build
 
