@@ -15,6 +15,9 @@ jobs:
         - name: Checkout sources
           uses: actions/checkout@v2
 
+        - name: Install Solana CLI
+          run: sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
+
         - name: Install avm
           run: cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
 
