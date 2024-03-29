@@ -18,13 +18,13 @@ jobs:
         - name: Install Rust
           uses: ATiltedTree/setup-rust@v1
           with:
-            rust-version: 1.70.0
+            rust-version: 1.65.0
 
         - name: Install Solana CLI
           run: sh -c "$(curl -sSfL https://release.solana.com/1.16.27/install)"
 
         - name: Install anchor
-          run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.29.0 anchor-cli --locked
+          run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.26.0 anchor-cli --locked
 
         - name: Install bpfel-unknown-unknown
           run: rustup target add bpfel-unknown-unknown
