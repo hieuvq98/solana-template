@@ -18,7 +18,7 @@ jobs:
         - name: Install Rust
           uses: ATiltedTree/setup-rust@v1
           with:
-            rust-version: 1.65.0
+            rust-version: 1.68.0
 
         - name: Install Solana CLI
           run: sh -c "$(curl -sSfL https://release.solana.com/1.16.27/install)"
