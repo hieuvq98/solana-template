@@ -16,16 +16,18 @@ jobs:
           uses: actions/checkout@v2
 
         - name: Install Rust
-          run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+          uses: ATiltedTree/setup-rust@v1
+          with:
+            rust-version: 1.75.0
+
+        - name: Install bpf
+          run: cargo bpf
 
         - name: Install Solana CLI
           run: sh -c "$(curl -sSfL https://release.solana.com/1.16.27/install)"
         
         - name: Install anchor
           run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.26.0 anchor-cli --locked
-
-        - name: Install bpfel-unknown-unknown
-          run: rustup target add bpfel-unknown-unknown
 
         - name: Compile
           run: anchor build
