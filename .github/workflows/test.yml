@@ -15,8 +15,15 @@ jobs:
         - name: Checkout sources
           uses: actions/checkout@v2
 
-        - name: Anchor Test
-          uses: mrgnlabs/anchor-test-action@v0.4
+        - name: Set up environment
+          uses: metadaoproject/anchor-test@v2
           with:
-            args: ""
-            workspace_dir: "."
+            anchor-version: '0.26.0'
+            solana-cli-version: '1.16.27'
+            node-version: '18.0.0'
+
+        - name: Build
+          run: npm run build:rs
+        
+        - name: Test
+          run: npm run test:rs
