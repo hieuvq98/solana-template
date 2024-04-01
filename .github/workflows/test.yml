@@ -22,12 +22,6 @@ jobs:
             solana-cli-version: '1.16.1'
             node-version: '16.15.1'
 
-        - name: Install Solana CLI
-          run: sh -c "$(curl -sSfL https://release.solana.com/1.16.27/install)"
-
-        - name: Install anchor
-          run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.26.0 anchor-cli --locked
-
         - name: Compile
           run: anchor build
 
