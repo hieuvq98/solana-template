@@ -15,15 +15,20 @@ jobs:
         - name: Checkout sources
           uses: actions/checkout@v2
 
-        - name: Set up environment
-          uses: metadaoproject/anchor-test@v2
-          with:
-            anchor-version: '0.28.0'
-            solana-cli-version: '1.14.20'
-            node-version: '16.15.1'
+        - name: Install Rust
+          run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-        - name: Build
-          run: npm run build:rs
+        - name: Install Solana CLI
+          run: sh -c "$(curl -sSfL https://release.solana.com/1.16.27/install)"
         
+        - name: Install anchor
+          run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.26.0 anchor-cli --locked
+
+        - name: Install bpfel-unknown-unknown
+          run: rustup target add bpfel-unknown-unknown
+
+        - name: Compile
+          run: anchor build
+
         - name: Test
-          run: npm run test:rs
+          run: cargo test-bpf -- --nocapture
