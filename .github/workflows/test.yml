@@ -18,9 +18,9 @@ jobs:
         - name: Set up environment
           uses: metadaoproject/anchor-test@v2
           with:
-            anchor-version: '0.26.0'
-            solana-cli-version: '1.16.27'
-            node-version: '18.0.0'
+            anchor-version: '0.28.0'
+            solana-cli-version: '1.14.20'
+            node-version: '16.15.1'
 
         - name: Build
           run: npm run build:rs
