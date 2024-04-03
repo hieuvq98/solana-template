@@ -27,7 +27,7 @@ jobs:
           run: echo "/home/runner/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
         - name: Init new version
-          run: solana-install init 1.18.1 
+          run: solana-install init 1.18.9 
         
         - name: Update solana program
           run: cargo update -p solana-program@1.18.9
