@@ -15,11 +15,6 @@ jobs:
         - name: Checkout sources
           uses: actions/checkout@v2
 
-        - name: Install Rust
-          uses: ATiltedTree/setup-rust@v1
-          with:
-            rust-version: 1.75.0
-
         - name: Install Solana CLI
           run: sh -c "$(curl -sSfL https://release.solana.com/latest/install)"
 
@@ -27,7 +22,7 @@ jobs:
           run: echo "/home/runner/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
         - name: Compile
-          run: cargo build-sbf -- --ignore-rust-version
+          run: cargo-build-sbf -- --ignore-rust-version
 
         - name: Test
-          run: cargo test-sbf
+          run: cargo-test-sbf
