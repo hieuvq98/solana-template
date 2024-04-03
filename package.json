@@ -19,7 +19,7 @@
     "build:ts": "tsc --build",
     "clean": "git clean -fxd",
     "deploy:rs": "solana program deploy ./target/deploy/coin98_starship.so --program-id ./tests/coin98_starship.keypair.json --url localhost",
-    "test:rs": "cargo test-bpf -- --nocapture",
+    "test:rs": "cargo test-sbf -- --nocapture",
     "test:ts": "ts-mocha -p ./tsconfig.mocha.json ./tests/*.spec.ts --timeout 60000"
   },
   "dependencies": {

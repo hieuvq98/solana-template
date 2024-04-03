@@ -19,9 +19,9 @@ jobs:
           uses: metadaoproject/setup-solana@v1.0
           with: 
             solana-cli-version: '1.18.9'
-            
+
         - name: Compile
           run: cargo build-sbf
 
         - name: Test
-          run: cargo test-sbf
+          run: cargo test-sbf -- --nocapture
