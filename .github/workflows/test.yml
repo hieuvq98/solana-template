@@ -21,7 +21,13 @@ jobs:
             rust-version: 1.75.0
 
         - name: Install Solana CLI
-          run: sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
+          run: sh -c "$(curl -sSfL https://release.solana.com/1.18.4/install)"
+
+        - name: Log versions
+          run: |
+            cargo build-sbf --version
+            solana --version
+            rustc --version
 
         - name: Export path
           run: echo "/home/runner/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
