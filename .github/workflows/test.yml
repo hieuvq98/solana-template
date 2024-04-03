@@ -15,13 +15,18 @@ jobs:
         - name: Checkout sources
           uses: actions/checkout@v2
 
-        - uses: actions/checkout@v3
-        - uses: metadaoproject/setup-solana@v1.0
+        - name: Install Solana CLI
+          uses: metadaoproject/setup-solana@v1.0
           with: 
             solana-cli-version: '1.17.16'
 
+        - name: Update rust
+          run: rustup update
+
         - name: Version
-          run: solana --version
+          run: |
+            solana --version
+            cargo --version
 
         - name: Compile
           run: cargo-build-bpf
