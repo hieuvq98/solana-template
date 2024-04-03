@@ -36,4 +36,4 @@ jobs:
           run: cargo build-bpf -- --ignore-rust-version
 
         - name: Test
-          run: cargo test-bpf
+          run: cargo test-bpf -- --ignore-rust-version
