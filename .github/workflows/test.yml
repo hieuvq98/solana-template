@@ -33,7 +33,7 @@ jobs:
           run: cargo update -p solana-program@1.18.9
 
         - name: Compile
-          run: cargo build-bpf -- --ignore-rust-version
+          run: cargo build-sbf -- --ignore-rust-version
 
         - name: Test
-          run: cargo test-bpf -- --ignore-rust-version
+          run: cargo test-sbf
