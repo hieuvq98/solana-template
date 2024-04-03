@@ -18,7 +18,7 @@ jobs:
         - name: Install Solana CLI
         - uses: metadaoproject/anchor-test@v2
           with:
-            anchor-version: '0.28.0'
+            anchor-version: '0.26.0'
             solana-cli-version: '1.16.17'
             node-version: '16.15.1'
 
