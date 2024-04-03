@@ -21,10 +21,15 @@ jobs:
             rust-version: 1.75.0
 
         - name: Install Solana CLI
-          run: sh -c "$(curl -sSfL https://release.solana.com/1.16.1/install)"
+          run:  |
+            sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
+            export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
+
+        - name: Install anchor
+          run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.26.0 anchor-cli --locked
 
         - name: Compile
-          run: cargo-build-bpf
+          run: anchor build
 
         - name: Test
           run: cargo test-bpf -- --nocapture
