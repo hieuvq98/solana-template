@@ -22,7 +22,7 @@ jobs:
           run: echo "/home/runner/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
         - name: Compile
-          run: cargo-build-sbf -- --ignore-rust-version
-
+          run: cargo build-sbf
+          
         - name: Test
-          run: cargo-test-sbf
+          run: cargo test-sbf
