@@ -20,12 +20,9 @@ jobs:
           with: 
             solana-cli-version: '1.18.4'
 
-        - name: Update solana program
-          run: cargo update -p solana-program@1.18.9 --precise ver
-
         - name: Version
           run: cargo-build-sbf --version
-          
+
         - name: Compile
           run: cargo build-bpf
 
