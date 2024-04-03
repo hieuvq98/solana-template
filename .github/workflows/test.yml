@@ -26,6 +26,9 @@ jobs:
         - name: Set CLI path
           run: export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
 
+        - name: Logs
+          run: ls /home/runner/.local/share/solana/install/active_release/bin
+
         - name: Compile
           run: cargo-build-bpf
 
