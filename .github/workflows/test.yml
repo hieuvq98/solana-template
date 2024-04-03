@@ -15,19 +15,13 @@ jobs:
         - name: Checkout sources
           uses: actions/checkout@v2
 
-        - name: Install Rust
-          uses: ATiltedTree/setup-rust@v1
-          with:
-            rust-version: 1.75.0
+        - uses: actions/checkout@v3
+        - uses: metadaoproject/setup-solana@v1.0
+          with: 
+            solana-cli-version: '1.10.32'
 
-        - name: Install Solana CLI
-          run: sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
-
-        - name: Set CLI path
-          run: export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
-
-        - name: Logs
-          run: ls /home/runner/.local/share/solana/install/active_release/bin
+        - name: Version
+          run: solana --version
 
         - name: Compile
           run: cargo-build-bpf
