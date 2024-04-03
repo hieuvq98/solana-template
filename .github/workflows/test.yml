@@ -21,9 +21,10 @@ jobs:
             rust-version: 1.75.0
 
         - name: Install Solana CLI
-          run:  |
-            sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
-            export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
+          run: sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
+
+        - name: Set CLI path
+          run: export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
 
         - name: Install anchor
           run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.26.0 anchor-cli --locked
