@@ -18,10 +18,13 @@ jobs:
         - name: Install Solana CLI
           uses: metadaoproject/setup-solana@v1.0
           with: 
-            solana-cli-version: '1.18.0'
+            solana-cli-version: '1.18.4'
 
         - name: Update solana program
           run: cargo update -p solana-program@1.18.9 --precise ver
+
+        - name: Version
+          run: cargo-build-sbf --version
           
         - name: Compile
           run: cargo build-bpf
