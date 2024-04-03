@@ -28,6 +28,9 @@ jobs:
 
         - name: Init new version
           run: solana-install init 1.18.1 
+        
+        - name: Update solana program
+          run: cargo update -p solana-program@1.18.9
 
         - name: Compile
           run: cargo build-bpf
