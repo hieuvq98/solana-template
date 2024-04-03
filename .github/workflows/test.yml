@@ -24,9 +24,10 @@ jobs:
           run: |
             solana --version
             cargo --version
+            cargo --list
 
         - name: Compile
-          run: cargo-build-bpf
+          run: cargo build-bpf
 
         - name: Test
-          run: cargo-test-bpf
+          run: cargo test-bpf
